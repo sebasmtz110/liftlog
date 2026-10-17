@@ -254,7 +254,7 @@ export default function Exercises() {
             <p className="title-2">Delete this exercise?</p>
             <div className="spacer-8" />
             <p className="body">
-              {exercises.find((e) => e.id === confirmDelete)?.name} will be removed
+              {exercises.find((e) => e.id === confirmDelete)?.name}{" "}will be removed
               from your library.
             </p>
             <div className="spacer-16" />
