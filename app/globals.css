@@ -537,3 +537,84 @@ textarea.input {
   .sheet { animation: none; }
   .pressable:active, .btn:active { transform: none; }
 }
+
+/* ---- Exercise demo animations (V7 3D clips) ---- */
+.demo-thumb {
+  width: 64px;
+  height: 54px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #000;
+  flex-shrink: 0;
+  display: block;
+}
+
+.demo-thumb-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 10px;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.demo-thumb-btn:active {
+  opacity: 0.7;
+}
+
+.demo-thumb-empty {
+  width: 64px;
+  height: 54px;
+  border-radius: 10px;
+  background: var(--card2);
+  flex-shrink: 0;
+}
+
+.demo-large {
+  width: 100%;
+  aspect-ratio: 6 / 5;
+  border-radius: 14px;
+  background: #000;
+  object-fit: cover;
+}
+
+.demo-note {
+  padding: 8px 4px 0;
+}
+
+.exercise-option-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* ---- Exercise library rows ---- */
+.exercise-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.exercise-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.exercise-row-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.notice {
+  background: rgba(255, 40, 85, 0.12);
+  border: 1px solid rgba(255, 40, 85, 0.35);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.spacer-4 {
+  height: 4px;
+}

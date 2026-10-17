@@ -69,7 +69,28 @@ sets:      id (uuid), workout_id → workouts, exercise_id → exercises,
 ## Screens
 
 - **Home** — Start workout button (+ resume banner), recent workouts list
-- **Workout** — add exercises from a searchable sheet, log sets (reps + weight),
-  delete/renumber sets, finish or discard
+- **Workout** — add exercises from a searchable sheet (with 3D animation
+  previews), log sets (reps + weight), delete/renumber sets, finish or discard
+- **Exercises** — the full exercise library: browse with animation previews
+  (tap for a larger demo), add your own exercises, edit, and delete unused ones
 - **History** — past workouts with expandable per-exercise set details
 - **Stats** — total workouts, total sets, sets + volume this week
+
+## Exercise animations
+
+36 V7 3D animation clips live in `public/fitness-animations/mobile/`
+(served from this repo, never hotlinked — filenames must stay unchanged).
+The exercise-name → clip mapping is in `lib/exerciseDemos.js`. Exercises
+without a clip (Bench Press, Dip, and any custom exercises you add) simply
+show no preview — never a broken video element. The player follows the same
+behavior as the reference app: autoplay muted loop playsinline, paused for
+reduced-motion users, hidden on load error, paused when hidden.
+
+## Migration: exercises write access
+
+The first version of `supabase/schema.sql` created the `exercises` table as
+SELECT-only. The current schema creates it with full read/write demo access.
+If you already ran the old schema, run
+[`supabase/migration_exercises_write.sql`](supabase/migration_exercises_write.sql)
+**once** in the Supabase SQL editor — it drops the old read-only policy and
+creates the read/write one. Fresh installs don't need it.

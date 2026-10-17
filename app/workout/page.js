@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../../lib/supabase";
 import { formatDateTime } from "../../lib/format";
 import ConfigBanner from "../components/ConfigBanner";
+import { DemoThumb } from "../components/ExerciseDemo";
 
 /**
  * Active workout screen: add exercises from the catalog, log sets
@@ -301,7 +302,10 @@ export default function Workout() {
             ) : (
               filteredCatalog.map((e) => (
                 <button key={e.id} className="exercise-option" onClick={() => addExercise(e.id)}>
-                  <span>{e.name}</span>
+                  <span className="exercise-option-main">
+                    <DemoThumb name={e.name} />
+                    <span>{e.name}</span>
+                  </span>
                   <span className="muscle-tag">{e.muscle_group}</span>
                 </button>
               ))

@@ -57,8 +57,8 @@ alter table sets      enable row level security;
 
 do $$
 begin
-  if not exists (select 1 from pg_policies where policyname = 'demo: public read exercises') then
-    create policy "demo: public read exercises" on exercises for select using (true);
+  if not exists (select 1 from pg_policies where policyname = 'demo: public all exercises') then
+    create policy "demo: public all exercises" on exercises for all using (true) with check (true);
   end if;
   if not exists (select 1 from pg_policies where policyname = 'demo: public all workouts') then
     create policy "demo: public all workouts" on workouts for all using (true) with check (true);
