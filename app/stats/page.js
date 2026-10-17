@@ -62,24 +62,28 @@ export default function Stats() {
             <p className="section-label">This week</p>
             <div className="stat-grid">
               <div className="stat-card">
+                <p className="stat-kicker">Sets</p>
                 <p className="stat-value">{stats.weekSets}</p>
-                <p className="stat-label">Sets this week</p>
+                <p className="stat-label">this week</p>
               </div>
               <div className="stat-card">
+                <p className="stat-kicker">Volume</p>
                 <p className="stat-value">{stats.weekVolume.toLocaleString()}</p>
-                <p className="stat-label">Volume (lb) this week</p>
+                <p className="stat-label">lb this week</p>
               </div>
             </div>
             <div className="spacer-24" />
             <p className="section-label">All time</p>
             <div className="stat-grid">
               <div className="stat-card">
+                <p className="stat-kicker">Workouts</p>
                 <p className="stat-value">{stats.totalWorkouts}</p>
-                <p className="stat-label">Total workouts</p>
+                <p className="stat-label">all time</p>
               </div>
               <div className="stat-card">
+                <p className="stat-kicker">Sets</p>
                 <p className="stat-value">{stats.totalSets}</p>
-                <p className="stat-label">Total sets</p>
+                <p className="stat-label">all time</p>
               </div>
             </div>
           </>

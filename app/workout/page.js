@@ -6,6 +6,7 @@ import { supabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../../lib/supabase";
 import { formatDateTime } from "../../lib/format";
 import ConfigBanner from "../components/ConfigBanner";
 import { DemoThumb } from "../components/ExerciseDemo";
+import { muscleTagClass } from "../../lib/muscleColors";
 
 /**
  * Active workout screen: add exercises from the catalog, log sets
@@ -207,7 +208,7 @@ export default function Workout() {
               <div className="card" key={exercise.id}>
                 <div className="workout-row-head">
                   <p className="headline">{exercise.name}</p>
-                  <span className="muscle-tag">{exercise.muscle_group}</span>
+                  <span className={`muscle-tag ${muscleTagClass(exercise.muscle_group)}`}>{exercise.muscle_group}</span>
                 </div>
                 <div className="spacer-8" />
                 {exSets.map((s) => (
@@ -307,7 +308,7 @@ export default function Workout() {
                       <DemoThumb name={e.name} />
                       <span className="grouped-row-title">{e.name}</span>
                     </span>
-                    <span className="muscle-tag">{e.muscle_group}</span>
+                    <span className={`muscle-tag ${muscleTagClass(e.muscle_group)}`}>{e.muscle_group}</span>
                   </button>
                 ))}
               </div>

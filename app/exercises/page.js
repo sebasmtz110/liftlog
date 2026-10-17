@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase, isConfigured } from "../../lib/supabase";
 import { hasDemo } from "../../lib/exerciseDemos";
 import { DemoThumb, DemoModal } from "../components/ExerciseDemo";
+import { muscleTagClass } from "../../lib/muscleColors";
 import ConfigBanner from "../components/ConfigBanner";
 
 /**
@@ -153,7 +154,7 @@ export default function Exercises() {
                 <div className="grouped-row-main">
                   <span className="grouped-row-title">{e.name}</span>
                   <div className="spacer-4" />
-                  <span className="muscle-tag">{e.muscle_group}</span>
+                  <span className={`muscle-tag ${muscleTagClass(e.muscle_group)}`}>{e.muscle_group}</span>
                 </div>
                 <div className="grouped-row-actions">
                   <button
