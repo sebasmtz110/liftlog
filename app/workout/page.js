@@ -190,7 +190,7 @@ export default function Workout() {
     <>
       <ConfigBanner />
       <header className="screen-head">
-        <p className="caption">{startedAt ? formatDateTime(startedAt).toUpperCase() : "IN PROGRESS"}</p>
+        <p className="kicker">{startedAt ? formatDateTime(startedAt).toUpperCase() : "IN PROGRESS"}</p>
         <h1 className="large-title">Workout</h1>
       </header>
 

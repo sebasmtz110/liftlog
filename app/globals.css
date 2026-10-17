@@ -1,19 +1,21 @@
-/* LiftLog design system — Apple HIG-inspired, dark, mobile-first.
-   Near-black canvas, pink #ff2855 tint, SF system type, 44pt touch targets. */
+/* LiftLog design system — Sebas-Lift language.
+   Pure black #000000 canvas, charcoal #141416 cards, pink #ff2855 tint,
+   SF system type, 44pt+ touch targets, iOS-style bottom tab bar. */
 
 :root {
-  --bg: #0b0b0d;
-  --bg-elevated: #141417;
-  --card: #17171b;
-  --card-press: #1e1e24;
+  --bg: #000000;
+  --card: #141416;
+  --card2: #1c1c1e;
+  --input: #1e1e22;
   --pink: #ff2855;
-  --pink-press: #e01f49;
-  --text: #f5f5f7;
-  --text-dim: #a1a1aa;
-  --text-faint: #63636b;
-  --border: rgba(255, 255, 255, 0.09);
+  --pink-press: #d61f45;
+  --pink-soft: rgba(255, 40, 85, 0.14);
+  --text: #ffffff;
+  --text-dim: #99999f;
+  --border: #29292d;
   --green: #30d158;
-  --radius: 16px;
+  --amber: #fbbf24;
+  --radius: 19px;
   --tabbar-h: 84px;
 }
 
@@ -28,8 +30,9 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
-    "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    sans-serif;
+  font-size: 16px;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
 }
@@ -48,39 +51,40 @@ body {
   padding-bottom: calc(var(--tabbar-h) + 24px);
 }
 
-/* ---- Typography (HIG text styles) ---- */
+/* ---- Typography ---- */
 .large-title {
   font-size: 34px;
-  line-height: 41px;
+  line-height: 1.1;
   font-weight: 700;
-  letter-spacing: -0.4px;
-  margin: 0;
+  letter-spacing: -0.03em;
+  margin: 4px 0 0;
 }
 
 .title-2 {
   font-size: 22px;
   line-height: 28px;
   font-weight: 700;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
 .headline {
   font-size: 17px;
   line-height: 22px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
 .body {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 22px;
   margin: 0;
 }
 
 .footnote {
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 19px;
   color: var(--text-dim);
   margin: 0;
 }
@@ -88,39 +92,46 @@ body {
 .caption {
   font-size: 12px;
   line-height: 16px;
-  color: var(--text-faint);
+  color: var(--text-dim);
+  margin: 0;
+}
+
+/* Pink uppercase kicker, Sebas-Lift style */
+.kicker {
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: var(--pink);
+  text-transform: uppercase;
   margin: 0;
 }
 
 .section-label {
   font-size: 13px;
   line-height: 18px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--text-dim);
-  margin: 0 0 8px 4px;
+  margin: 20px 0 10px 2px;
 }
 
 /* ---- Screen chrome ---- */
 .screen-head {
-  padding: 56px 20px 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px 12px;
 }
 
 .screen-body {
-  padding: 4px 16px 0;
+  padding: 4px 20px 0;
 }
 
-.screen-head .large-title {
-  margin-top: 4px;
-}
-
-/* ---- Cards ---- */
+/* ---- Cards (Sebas-Lift: charcoal, no border, 19px radius) ---- */
 .card {
   background: var(--card);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 18px;
 }
 
 .card + .card {
@@ -129,35 +140,38 @@ body {
 
 .pressable {
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
 .pressable:active {
-  background: var(--card-press);
-  transform: scale(0.99);
+  transform: scale(0.97);
+  opacity: 0.93;
 }
 
-/* ---- Buttons (iOS styles, 44pt+ targets) ---- */
+/* ---- Buttons ---- */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 50px;
-  padding: 0 20px;
+  min-height: 48px;
+  padding: 14px 16px;
   border: 0;
-  border-radius: 14px;
-  font-size: 17px;
-  font-weight: 600;
+  border-radius: 15px;
+  background: #27272b;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
   font-family: inherit;
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
   user-select: none;
 }
 
 .btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
+  opacity: 0.93;
 }
 
 .btn:disabled {
@@ -165,10 +179,14 @@ body {
   cursor: default;
 }
 
+/* Primary pink CTA, Sebas-Lift .sl-primary */
 .btn-filled {
   background: var(--pink);
   color: #fff;
   width: 100%;
+  padding: 17px;
+  font-size: 18px;
+  border-radius: 15px;
 }
 
 .btn-filled:active {
@@ -176,7 +194,7 @@ body {
 }
 
 .btn-tinted {
-  background: rgba(255, 40, 85, 0.14);
+  background: var(--pink-soft);
   color: var(--pink);
 }
 
@@ -184,51 +202,49 @@ body {
   background: transparent;
   color: var(--pink);
   min-height: 44px;
-  padding: 0 12px;
+  padding: 8px 12px;
 }
 
 .btn-gray {
-  background: var(--bg-elevated);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: #27272b;
+  color: #fff;
 }
 
-/* ---- Bottom tab bar ---- */
+/* ---- Bottom tab bar (Sebas-Lift nav.sl-nav) ---- */
 .tabbar {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 480px;
-  height: var(--tabbar-h);
+  left: 0;
+  right: 0;
   display: flex;
-  background: rgba(20, 20, 23, 0.86);
-  backdrop-filter: blur(20px) saturate(1.6);
-  -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom, 20px);
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-top: 1px solid #1b1b1e;
+  padding: 10px 4px max(16px, env(safe-area-inset-bottom, 0px));
   z-index: 50;
 }
 
 .tab {
   flex: 1;
+  max-width: 90px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  min-height: 64px;
-  color: var(--text-faint);
+  gap: 4px;
+  min-height: 52px;
+  padding: 6px 0;
+  color: var(--text-dim);
   text-decoration: none;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.2px;
+  font-family: inherit;
 }
 
 .tab svg {
-  width: 25px;
-  height: 25px;
+  width: 24px;
+  height: 24px;
 }
 
 .tab.active {
@@ -253,13 +269,13 @@ select.input,
 textarea.input {
   width: 100%;
   min-height: 44px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--input);
+  border: 1px solid #2e2e33;
   border-radius: 12px;
-  color: var(--text);
-  font-size: 17px;
+  color: #fff;
+  font-size: 16px;
   font-family: inherit;
-  padding: 10px 14px;
+  padding: 12px 14px;
   outline: none;
 }
 
@@ -291,7 +307,7 @@ textarea.input {
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: rgba(255, 40, 85, 0.14);
+  background: var(--pink-soft);
   color: var(--pink);
   font-size: 14px;
   font-weight: 700;
@@ -321,7 +337,7 @@ textarea.input {
 }
 
 .icon-btn:active {
-  background: var(--card-press);
+  opacity: 0.6;
 }
 
 /* ---- Exercise picker ---- */
@@ -331,12 +347,13 @@ textarea.input {
   justify-content: space-between;
   width: 100%;
   min-height: 56px;
-  padding: 10px 14px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--card2);
+  border: 0;
+  border-radius: 14px;
   color: var(--text);
-  font-size: 17px;
+  font-size: 16px;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   text-align: left;
@@ -344,14 +361,14 @@ textarea.input {
 }
 
 .exercise-option:active {
-  background: var(--card-press);
+  opacity: 0.6;
 }
 
 .muscle-tag {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--pink);
-  background: rgba(255, 40, 85, 0.12);
+  background: rgba(255, 40, 85, 0.16);
   padding: 4px 10px;
   border-radius: 999px;
   white-space: nowrap;
@@ -362,13 +379,17 @@ textarea.input {
   width: 100%;
   text-align: left;
   background: var(--card);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 18px;
   color: var(--text);
   font-family: inherit;
   cursor: pointer;
   margin-bottom: 12px;
+}
+
+.workout-row:active {
+  opacity: 0.7;
 }
 
 .workout-row-head {
@@ -379,8 +400,8 @@ textarea.input {
 }
 
 .chev {
-  color: var(--text-faint);
-  font-size: 18px;
+  color: var(--text-dim);
+  font-size: 20px;
   transition: transform 0.2s ease;
 }
 
@@ -396,7 +417,7 @@ textarea.input {
 
 .detail-exercise {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   margin: 10px 0 4px;
 }
 
@@ -415,7 +436,7 @@ textarea.input {
 
 .stat-card {
   background: var(--card);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--radius);
   padding: 18px 16px;
 }
@@ -425,6 +446,7 @@ textarea.input {
   font-weight: 700;
   letter-spacing: -0.5px;
   color: var(--pink);
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
@@ -445,13 +467,14 @@ textarea.input {
   color: var(--text-dim);
 }
 
+/* Setup banner (env vars missing) — Sebas-Lift warning hint */
 .config-banner {
-  margin: 12px 16px 0;
+  margin: 12px 20px 0;
   padding: 14px 16px;
   border-radius: 14px;
-  background: rgba(255, 159, 10, 0.1);
-  border: 1px solid rgba(255, 159, 10, 0.35);
-  color: #ffb340;
+  border-left: 3px solid var(--amber);
+  background: #211a0c;
+  color: #ffd9a0;
   font-size: 14px;
   line-height: 20px;
 }
@@ -459,6 +482,7 @@ textarea.input {
 .config-banner code {
   font-family: ui-monospace, monospace;
   font-size: 12px;
+  word-break: break-all;
 }
 
 .loading {
@@ -482,8 +506,8 @@ textarea.input {
   width: 100%;
   max-width: 480px;
   max-height: 82dvh;
-  background: var(--bg-elevated);
-  border-radius: 20px 20px 0 0;
+  background: var(--card);
+  border-radius: 22px 22px 0 0;
   padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
@@ -507,4 +531,9 @@ textarea.input {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet { animation: none; }
+  .pressable:active, .btn:active { transform: none; }
 }

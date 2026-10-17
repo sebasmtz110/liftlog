@@ -59,7 +59,7 @@ export default function Home() {
     <>
       <ConfigBanner />
       <header className="screen-head">
-        <p className="caption">{today}</p>
+        <p className="kicker">{today}</p>
         <h1 className="large-title">LiftLog</h1>
       </header>
 
