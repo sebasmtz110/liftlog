@@ -136,42 +136,44 @@ export default function Exercises() {
             <p className="footnote">Tap + Add exercise to build your library.</p>
           </div>
         ) : (
-          exercises.map((e) => (
-            <div className="card exercise-row" key={e.id}>
-              {hasDemo(e.name) ? (
-                <button
-                  className="demo-thumb-btn"
-                  onClick={() => setDemoName(e.name)}
-                  aria-label={`Watch ${e.name} demo`}
-                >
-                  <DemoThumb name={e.name} />
-                </button>
-              ) : (
-                <span className="demo-thumb-empty" aria-hidden="true" />
-              )}
-              <div className="exercise-row-main">
-                <p className="headline">{e.name}</p>
-                <div className="spacer-4" />
-                <span className="muscle-tag">{e.muscle_group}</span>
+          <div className="grouped-list">
+            {exercises.map((e) => (
+              <div className="grouped-row" key={e.id}>
+                {hasDemo(e.name) ? (
+                  <button
+                    className="demo-thumb-btn"
+                    onClick={() => setDemoName(e.name)}
+                    aria-label={`Watch ${e.name} demo`}
+                  >
+                    <DemoThumb name={e.name} />
+                  </button>
+                ) : (
+                  <span className="demo-thumb-empty" aria-hidden="true" />
+                )}
+                <div className="grouped-row-main">
+                  <span className="grouped-row-title">{e.name}</span>
+                  <div className="spacer-4" />
+                  <span className="muscle-tag">{e.muscle_group}</span>
+                </div>
+                <div className="grouped-row-actions">
+                  <button
+                    className="icon-btn"
+                    aria-label={`Edit ${e.name}`}
+                    onClick={() => openEdit(e)}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    className="icon-btn"
+                    aria-label={`Delete ${e.name}`}
+                    onClick={() => setConfirmDelete(e.id)}
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
-              <div className="exercise-row-actions">
-                <button
-                  className="icon-btn"
-                  aria-label={`Edit ${e.name}`}
-                  onClick={() => openEdit(e)}
-                >
-                  ✎
-                </button>
-                <button
-                  className="icon-btn"
-                  aria-label={`Delete ${e.name}`}
-                  onClick={() => setConfirmDelete(e.id)}
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
 
@@ -257,8 +259,7 @@ export default function Exercises() {
             </p>
             <div className="spacer-16" />
             <button
-              className="btn btn-filled"
-              style={{ width: "100%", background: "#b6362e" }}
+              className="btn btn-bad"
               onClick={() =>
                 deleteExercise(exercises.find((e) => e.id === confirmDelete))
               }

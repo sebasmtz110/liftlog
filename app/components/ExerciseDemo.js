@@ -83,22 +83,24 @@ export function DemoModal({ name, onClose }) {
             Done
           </button>
         </div>
-        <video
-          ref={videoRef}
-          className="demo-large"
-          src={src}
-          muted
-          loop
-          playsInline
-          preload="auto"
-          autoPlay={!reduced}
-          controls={reduced}
-          aria-label={`${name} demonstration video`}
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-        <p className="footnote demo-note">Demo animation — form reference only.</p>
+        <div className="demo-stage">
+          <video
+            ref={videoRef}
+            className="demo-large"
+            src={src}
+            muted
+            loop
+            playsInline
+            preload="auto"
+            autoPlay={!reduced}
+            controls={reduced}
+            aria-label={`${name} demonstration video`}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        </div>
+        <p className="demo-note">Demo animation — form reference only.</p>
       </div>
     </div>
   );

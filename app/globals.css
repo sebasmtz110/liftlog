@@ -1,22 +1,24 @@
-/* LiftLog design system — Sebas-Lift language.
-   Pure black #000000 canvas, charcoal #141416 cards, pink #ff2855 tint,
-   SF system type, 44pt+ touch targets, iOS-style bottom tab bar. */
+/* LiftLog design system — Sebas-Lift tokens, matched 1:1 to SebasFit's live
+   stylesheet (Sebas-Lift reskin, 2026-10-16).
+   --bg #000000 · --card #141416 · --card2 #1c1c1e · --tx #ffffff
+   --mu #99999f · --ac/--pink #ff2855 · --wa #fbbf24 · --bad #ff5a5a
+   --bd #29292d · --str #ff9f5a · --wk #7c8cff · --link #4b8dff */
 
 :root {
   --bg: #000000;
   --card: #141416;
   --card2: #1c1c1e;
-  --input: #1e1e22;
+  --tx: #ffffff;
+  --mu: #99999f;
+  --ac: #ff2855;
   --pink: #ff2855;
-  --pink-press: #d61f45;
-  --pink-soft: rgba(255, 40, 85, 0.14);
-  --text: #ffffff;
-  --text-dim: #99999f;
-  --border: #29292d;
-  --green: #30d158;
-  --amber: #fbbf24;
-  --radius: 19px;
-  --tabbar-h: 84px;
+  --wa: #fbbf24;
+  --bad: #ff5a5a;
+  --bd: #29292d;
+  --str: #ff9f5a;
+  --wk: #7c8cff;
+  --link: #4b8dff;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 * {
@@ -28,15 +30,53 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
-  color: var(--text);
+  background: #000;
+  color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
     sans-serif;
   font-size: 16px;
+  letter-spacing: -0.015em;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+a {
+  color: var(--pink);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--ac);
+  width: 22px;
+  height: 22px;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- App frame (SebasFit main: max-width 480px, 20px gutters) ---- */
 .app-shell {
   max-width: 480px;
   margin: 0 auto;
@@ -48,21 +88,31 @@ body {
 
 .app-main {
   flex: 1;
-  padding-bottom: calc(var(--tabbar-h) + 24px);
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px
+    calc(130px + env(safe-area-inset-bottom, 0px));
+  overflow-wrap: anywhere;
+  animation: fade 0.35s var(--ease);
 }
 
-/* ---- Typography ---- */
+.screen-head {
+  padding: 0;
+}
+
+.screen-body {
+  padding: 0;
+}
+
+/* ---- Typography (SebasFit h1/h2/h3: 700, tight tracking) ---- */
 .large-title {
   font-size: 34px;
-  line-height: 1.1;
   font-weight: 700;
   letter-spacing: -0.03em;
-  margin: 4px 0 0;
+  margin: 6px 0 18px;
+  font-family: inherit;
 }
 
 .title-2 {
-  font-size: 22px;
-  line-height: 28px;
+  font-size: 23px;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
@@ -70,7 +120,6 @@ body {
 
 .headline {
   font-size: 17px;
-  line-height: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
@@ -78,28 +127,29 @@ body {
 
 .body {
   font-size: 16px;
-  line-height: 22px;
   margin: 0;
 }
 
 .footnote {
   font-size: 14px;
-  line-height: 19px;
-  color: var(--text-dim);
+  color: var(--mu);
   margin: 0;
 }
 
 .caption {
   font-size: 12px;
-  line-height: 16px;
-  color: var(--text-dim);
+  color: var(--mu);
   margin: 0;
 }
 
-/* Pink uppercase kicker, Sebas-Lift style */
+.mu {
+  color: var(--mu);
+  font-size: 15px;
+}
+
+/* Pink uppercase kicker — SebasFit .sl-kicker */
 .kicker {
   font-size: 11px;
-  line-height: 14px;
   letter-spacing: 1.5px;
   font-weight: 700;
   color: var(--pink);
@@ -107,40 +157,54 @@ body {
   margin: 0;
 }
 
+/* Muted date kicker — SebasFit .sl-date */
+.sl-date {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--mu);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Tight pink kicker — SebasFit .wo-head .kicker */
+.kicker-tight {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--pink);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Section group title — SebasFit .tut-gtitle */
 .section-label {
   font-size: 13px;
-  line-height: 18px;
   font-weight: 700;
+  color: var(--mu);
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--text-dim);
-  margin: 20px 0 10px 2px;
+  letter-spacing: 0.06em;
+  margin: 22px 4px 8px;
 }
 
-/* ---- Screen chrome ---- */
-.screen-head {
-  padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px 12px;
-}
-
-.screen-body {
-  padding: 4px 20px 0;
-}
-
-/* ---- Cards (Sebas-Lift: charcoal, no border, 19px radius) ---- */
+/* ---- Cards (SebasFit .card: #141416, radius 19px, no border) ---- */
 .card {
   background: var(--card);
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 19px;
   padding: 18px;
-}
-
-.card + .card {
-  margin-top: 12px;
+  margin: 12px 0;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
 .pressable {
   cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .pressable:active {
@@ -165,13 +229,15 @@ body {
   font-family: inherit;
   cursor: pointer;
   text-decoration: none;
-  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+  transition:
+    transform 0.15s var(--ease),
+    opacity 0.15s;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn:active {
-  transform: scale(0.97);
-  opacity: 0.93;
+  transform: scale(0.96);
 }
 
 .btn:disabled {
@@ -179,67 +245,120 @@ body {
   cursor: default;
 }
 
-/* Primary pink CTA, Sebas-Lift .sl-primary */
+/* Primary pink CTA — SebasFit .sl-primary */
 .btn-filled {
   background: var(--pink);
   color: #fff;
+  border: 0;
   width: 100%;
-  padding: 17px;
-  font-size: 18px;
   border-radius: 15px;
+  padding: 17px;
+  font-weight: 700;
+  font-size: 18px;
+  margin-top: 12px;
+  font-family: inherit;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn-filled:active {
-  background: var(--pink-press);
+  transform: scale(0.97);
+  opacity: 0.93;
 }
 
-.btn-tinted {
-  background: var(--pink-soft);
-  color: var(--pink);
-}
-
-.btn-plain {
-  background: transparent;
-  color: var(--pink);
-  min-height: 44px;
-  padding: 8px 12px;
-}
-
+/* Secondary gray — SebasFit .sl-secondary */
 .btn-gray {
   background: #27272b;
   color: #fff;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  width: 100%;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* ---- Bottom tab bar (Sebas-Lift nav.sl-nav) ---- */
+.btn-gray:active {
+  transform: scale(0.97);
+  opacity: 0.93;
+}
+
+/* Text link button — SebasFit .sl-linkbtn */
+.btn-plain {
+  background: none;
+  border: 0;
+  color: var(--pink);
+  font-weight: 700;
+  font-size: 15px;
+  font-family: inherit;
+  padding: 8px 4px;
+  min-height: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Pink-tinted button */
+.btn-tinted {
+  background: rgba(255, 40, 85, 0.14);
+  color: var(--pink);
+  border: 0;
+  border-radius: 15px;
+  min-height: 48px;
+  font-weight: 700;
+  width: 100%;
+}
+
+/* Destructive — SebasFit .btn.bad */
+.btn-bad {
+  background: #2a1215;
+  color: #ff5a5a;
+  border: 0;
+  border-radius: 15px;
+  min-height: 48px;
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 16px;
+  font-family: inherit;
+  width: 100%;
+}
+
+/* ---- Bottom tab bar (SebasFit nav.sl-nav) ---- */
 .tabbar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 30;
   display: flex;
-  justify-content: center;
+  justify-content: space-around;
   background: rgba(0, 0, 0, 0.88);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   border-top: 1px solid #1b1b1e;
   padding: 10px 4px max(16px, env(safe-area-inset-bottom, 0px));
-  z-index: 50;
 }
 
 .tab {
   flex: 1;
   max-width: 90px;
+  background: none;
+  border: 0;
+  color: var(--mu);
+  font-size: 11px;
+  font-weight: 600;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-height: 52px;
   padding: 6px 0;
-  color: var(--text-dim);
-  text-decoration: none;
-  font-size: 11px;
-  font-weight: 500;
+  min-height: 52px;
   font-family: inherit;
+  text-decoration: none;
 }
 
 .tab svg {
@@ -251,7 +370,11 @@ body {
   color: var(--pink);
 }
 
-/* ---- Forms ---- */
+.tab:active {
+  transform: scale(0.96);
+}
+
+/* ---- Forms (SebasFit inputs: #1e1e22, 1px #2e2e33, radius 12px) ---- */
 .field {
   margin-bottom: 12px;
 }
@@ -260,7 +383,7 @@ body {
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-dim);
+  color: var(--mu);
   margin-bottom: 6px;
 }
 
@@ -269,18 +392,14 @@ select.input,
 textarea.input {
   width: 100%;
   min-height: 44px;
-  background: var(--input);
+  background: #1e1e22;
   border: 1px solid #2e2e33;
   border-radius: 12px;
   color: #fff;
   font-size: 16px;
   font-family: inherit;
-  padding: 12px 14px;
+  padding: 12px;
   outline: none;
-}
-
-.input:focus {
-  border-color: var(--pink);
 }
 
 .row-2 {
@@ -289,14 +408,14 @@ textarea.input {
   gap: 12px;
 }
 
-/* ---- Set rows ---- */
+/* ---- Set rows (SebasFit sl-table tokens) ---- */
 .set-row {
   display: grid;
   grid-template-columns: 34px 1fr 1fr 44px;
   gap: 10px;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--bd);
 }
 
 .set-row:last-child {
@@ -304,22 +423,16 @@ textarea.input {
 }
 
 .set-num {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: var(--pink-soft);
-  color: var(--pink);
-  font-size: 14px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--mu);
+  text-align: center;
 }
 
-.set-row .input {
-  min-height: 44px;
+.set-val {
+  font-size: 14px;
   text-align: center;
-  padding: 8px;
+  margin: 0;
 }
 
 .icon-btn {
@@ -330,7 +443,7 @@ textarea.input {
   justify-content: center;
   background: transparent;
   border: 0;
-  color: var(--text-dim);
+  color: var(--mu);
   cursor: pointer;
   border-radius: 12px;
   font-size: 20px;
@@ -340,37 +453,74 @@ textarea.input {
   opacity: 0.6;
 }
 
-/* ---- Exercise picker ---- */
-.exercise-option {
+/* ---- Grouped inset list (SebasFit .tut-tiles / .tut-tile) ---- */
+.grouped-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.grouped-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   width: 100%;
-  min-height: 56px;
   padding: 12px 14px;
-  background: var(--card2);
   border: 0;
-  border-radius: 14px;
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
+  border-bottom: 1px solid var(--bd);
+  background: transparent;
+  color: var(--tx);
+  font: inherit;
   text-align: left;
-  margin-bottom: 8px;
+  cursor: pointer;
 }
 
-.exercise-option:active {
-  opacity: 0.6;
+.grouped-list > .grouped-row:last-child {
+  border-bottom: 0;
 }
 
-.muscle-tag {
-  font-size: 12px;
+button.grouped-row:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.grouped-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.grouped-row-thumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.grouped-row-title {
+  display: block;
+  font-size: 15px;
   font-weight: 700;
-  color: var(--pink);
+  letter-spacing: -0.01em;
+}
+
+.grouped-row-actions {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+/* Muscle badge — SebasFit .tag.pr */
+.muscle-tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
   background: rgba(255, 40, 85, 0.16);
-  padding: 4px 10px;
-  border-radius: 999px;
+  color: var(--pink);
   white-space: nowrap;
 }
 
@@ -380,16 +530,22 @@ textarea.input {
   text-align: left;
   background: var(--card);
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 19px;
   padding: 18px;
-  color: var(--text);
+  color: var(--tx);
   font-family: inherit;
   cursor: pointer;
-  margin-bottom: 12px;
+  margin: 12px 0;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 10px 30px rgba(0, 0, 0, 0.25);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .workout-row:active {
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 .workout-row-head {
@@ -400,8 +556,10 @@ textarea.input {
 }
 
 .chev {
-  color: var(--text-dim);
-  font-size: 20px;
+  margin-left: auto;
+  color: var(--mu);
+  font-size: 22px;
+  font-weight: 300;
   transition: transform 0.2s ease;
 }
 
@@ -412,7 +570,7 @@ textarea.input {
 .workout-detail {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--bd);
 }
 
 .detail-exercise {
@@ -423,79 +581,102 @@ textarea.input {
 
 .detail-set {
   font-size: 14px;
-  color: var(--text-dim);
+  color: var(--mu);
   padding: 3px 0;
+  margin: 0;
 }
 
-/* ---- Stats ---- */
+/* ---- Stats (SebasFit .tiles / .tile / .tv / .tl) ---- */
 .stat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
+  margin: 12px 0;
 }
 
 .stat-card {
   background: var(--card);
-  border: 0;
-  border-radius: var(--radius);
-  padding: 18px 16px;
+  border: 1px solid var(--bd);
+  border-radius: 24px;
+  padding: 16px;
+  margin: 0;
+  min-width: 0;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
 .stat-value {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: var(--pink);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 8px 0 0;
+  color: #fff;
   font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
   font-size: 13px;
-  color: var(--text-dim);
-  margin-top: 4px;
+  color: var(--mu);
+  margin: 2px 0 0;
 }
 
 /* ---- Misc ---- */
-.spacer-8 { height: 8px; }
-.spacer-12 { height: 12px; }
-.spacer-16 { height: 16px; }
-.spacer-24 { height: 24px; }
+.spacer-4 {
+  height: 4px;
+}
+.spacer-8 {
+  height: 8px;
+}
+.spacer-12 {
+  height: 12px;
+}
+.spacer-16 {
+  height: 16px;
+}
+.spacer-24 {
+  height: 24px;
+}
 
 .empty {
   text-align: center;
-  padding: 48px 24px;
-  color: var(--text-dim);
+  padding: 28px 20px;
+  color: var(--mu);
 }
 
-/* Setup banner (env vars missing) — Sebas-Lift warning hint */
+/* Setup banner (env vars missing) — SebasFit .hint.warn */
 .config-banner {
-  margin: 12px 20px 0;
-  padding: 14px 16px;
-  border-radius: 14px;
-  border-left: 3px solid var(--amber);
   background: #211a0c;
-  color: #ffd9a0;
+  border: 1px solid var(--wa);
+  border-radius: 18px;
+  padding: 12px 14px;
   font-size: 14px;
   line-height: 20px;
+  margin: 0 0 12px;
 }
 
 .config-banner code {
   font-family: ui-monospace, monospace;
-  font-size: 12px;
+  font-size: 13px;
   word-break: break-all;
+  color: #cbd5e1;
 }
 
 .loading {
   padding: 48px 24px;
   text-align: center;
-  color: var(--text-dim);
+  color: var(--mu);
 }
 
-/* Native-style sheet */
+/* Native-style sheet — SebasFit #modal / #sheet */
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   z-index: 90;
   display: flex;
   align-items: flex-end;
@@ -506,24 +687,31 @@ textarea.input {
   width: 100%;
   max-width: 480px;
   max-height: 82dvh;
-  background: var(--card);
+  background: #141416;
   border-radius: 22px 22px 0 0;
-  padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--bd);
+  padding: 18px 16px calc(24px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
-  animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: sheet-up 0.3s var(--ease);
 }
 
 @keyframes sheet-up {
-  from { transform: translateY(40px); opacity: 0.6; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 .grabber {
-  width: 36px;
+  width: 38px;
   height: 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.3);
-  margin: 8px auto 16px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.22);
+  margin: 0 auto 12px;
 }
 
 .sheet-head {
@@ -534,11 +722,16 @@ textarea.input {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sheet { animation: none; }
-  .pressable:active, .btn:active { transform: none; }
+  .sheet {
+    animation: none;
+  }
+  .pressable:active,
+  .btn:active {
+    transform: none;
+  }
 }
 
-/* ---- Exercise demo animations (V7 3D clips) ---- */
+/* ---- Exercise demo animations (SebasFit .demo-stage / .demo-v7-host) ---- */
 .demo-thumb {
   width: 64px;
   height: 54px;
@@ -571,50 +764,59 @@ textarea.input {
   flex-shrink: 0;
 }
 
+.demo-stage {
+  background:
+    radial-gradient(
+      120% 80% at 50% 40%,
+      rgba(255, 255, 255, 0.06),
+      rgba(0, 0, 0, 0.2)
+    ),
+    rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--bd);
+  border-radius: 20px;
+  padding: 10px 12px 8px;
+  margin: 4px 0 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 .demo-large {
   width: 100%;
-  aspect-ratio: 6 / 5;
+  aspect-ratio: 720 / 600;
   border-radius: 14px;
   background: #000;
   object-fit: cover;
+  display: block;
 }
 
 .demo-note {
-  padding: 8px 4px 0;
-}
-
-.exercise-option-main {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mu);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-/* ---- Exercise library rows ---- */
-.exercise-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.exercise-row-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.exercise-row-actions {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
+/* Inline notice — SebasFit .hint */
 .notice {
-  background: rgba(255, 40, 85, 0.12);
-  border: 1px solid rgba(255, 40, 85, 0.35);
-  border-radius: var(--radius);
-  padding: 14px 16px;
+  background: #1e1216;
+  border: 1px solid rgba(94, 227, 161, 0.15);
+  border-left: 3px solid var(--pink);
+  border-radius: 18px;
+  padding: 12px 14px;
+  font-size: 15px;
+  margin: 8px 0;
 }
 
-.spacer-4 {
-  height: 4px;
+.notice p {
+  margin: 0;
 }

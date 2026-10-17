@@ -191,7 +191,7 @@ export default function Workout() {
     <>
       <ConfigBanner />
       <header className="screen-head">
-        <p className="kicker">{startedAt ? formatDateTime(startedAt).toUpperCase() : "IN PROGRESS"}</p>
+        <p className="kicker-tight">{startedAt ? formatDateTime(startedAt).toUpperCase() : "IN PROGRESS"}</p>
         <h1 className="large-title">Workout</h1>
       </header>
 
@@ -213,8 +213,8 @@ export default function Workout() {
                 {exSets.map((s) => (
                   <div className="set-row" key={s.id}>
                     <span className="set-num">{s.set_number}</span>
-                    <span className="body" style={{ textAlign: "center" }}>{s.reps} reps</span>
-                    <span className="body" style={{ textAlign: "center" }}>{s.weight} lb</span>
+                    <span className="set-val">{s.reps} reps</span>
+                    <span className="set-val">{s.weight} lb</span>
                     <button
                       className="icon-btn"
                       aria-label={`Delete set ${s.set_number}`}
@@ -300,15 +300,17 @@ export default function Workout() {
                 {catalog.length === 0 ? "No exercises found — run the seed data in supabase/schema.sql." : "No matches."}
               </p>
             ) : (
-              filteredCatalog.map((e) => (
-                <button key={e.id} className="exercise-option" onClick={() => addExercise(e.id)}>
-                  <span className="exercise-option-main">
-                    <DemoThumb name={e.name} />
-                    <span>{e.name}</span>
-                  </span>
-                  <span className="muscle-tag">{e.muscle_group}</span>
-                </button>
-              ))
+              <div className="grouped-list">
+                {filteredCatalog.map((e) => (
+                  <button key={e.id} className="grouped-row" onClick={() => addExercise(e.id)}>
+                    <span className="grouped-row-thumb">
+                      <DemoThumb name={e.name} />
+                      <span className="grouped-row-title">{e.name}</span>
+                    </span>
+                    <span className="muscle-tag">{e.muscle_group}</span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
