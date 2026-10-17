@@ -118,7 +118,7 @@ export default function Home() {
         .limit(12);
       const all = data ?? [];
       const finished = all.filter((w) => w.ended_at);
-      const weekWorkouts = all.filter((w) => new Date(w.started_at) >= weekStart);
+      const weekWorkouts = finished.filter((w) => new Date(w.started_at) >= weekStart);
       const weekSets = weekWorkouts.flatMap((w) => w.sets ?? []);
       setModel({
         ...base,
