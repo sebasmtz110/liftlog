@@ -848,3 +848,146 @@ button.grouped-row:active {
 .notice p {
   margin: 0;
 }
+
+/* ---- Home dashboard (SebasFit Home layout) ---- */
+.greet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.greet-row .large-title {
+  margin: 2px 0 18px;
+}
+.avatar-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #1c1c1e;
+  border: 1px solid #26262b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-bottom: 18px;
+}
+.avatar-circle svg {
+  width: 30px;
+  height: 30px;
+  color: #fff;
+}
+
+/* Week dots — MON..SUN labels, logged = pink fill + check, today = pink ring */
+.week-dots {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 0 22px;
+}
+.wdot-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.wdot-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--mu);
+}
+.wdot {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid #2b2b30;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.wdot.done {
+  background: var(--pink);
+  border-color: var(--pink);
+}
+.wdot.done svg {
+  width: 22px;
+  height: 22px;
+  color: #fff;
+}
+.wdot.today {
+  border-color: var(--pink);
+}
+
+/* Big white section titles — SebasFit "This week" / "Recent workouts" */
+.section-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin: 26px 0 2px;
+}
+
+/* Exercise thumbnail tiles — first letter, muscle-tinted */
+.thumb-row {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0 10px;
+}
+.thumb-tile {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: #1e1e22;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 800;
+  flex: none;
+}
+.thumb-tile.recent-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  font-size: 21px;
+}
+
+/* 3-column stat grid for the This-week tiles */
+.stat-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+/* Recent workout rows — thumbnail + info + chevron, tap to History */
+.recent-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 0;
+  border-radius: 24px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+}
+.recent-row:active {
+  transform: scale(0.98);
+}
+.recent-info {
+  flex: 1;
+  min-width: 0;
+}
+.recent-info .headline {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
