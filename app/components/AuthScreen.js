@@ -37,8 +37,13 @@ export default function AuthScreen() {
         mode === "signin"
           ? supabase.auth.signInWithPassword({ email: email.trim(), password })
           : supabase.auth.signUp({ email: email.trim(), password });
-      const { error } = await fn;
-      if (error) setError(friendlyError(error.message));
+      const { error, data } = await fn;
+      if (error) {
+        setError(friendlyError(error.message));
+      } else if (mode === "signup" && !data.session) {
+        // Email confirmation is enabled in Supabase: no session until they click the link.
+        setError("Account created — check your email for the confirmation link, then sign in.");
+      }
       // On success onAuthStateChange fires and AuthGate swaps to the app.
     } finally {
       setBusy(false);
