@@ -21,14 +21,19 @@ export function DemoThumb({ name, className = "" }) {
   }, []);
 
   if (!src || failed) return null;
+  // NOTE: muted is set via ref — React doesn't reliably apply the muted
+  // *property* (iOS Safari blocks autoplay without it), and preload="auto"
+  // (not "metadata") so iOS fetches enough to actually render frames.
   return (
     <video
+      ref={(el) => {
+        if (el) el.muted = true;
+      }}
       className={`demo-thumb ${className}`.trim()}
       src={src}
-      muted
       loop
       playsInline
-      preload="metadata"
+      preload="auto"
       autoPlay={!reduced}
       aria-label={`${name} demonstration`}
       onError={() => setFailed(true)}
@@ -111,7 +116,7 @@ export function DemoModal({ name, onClose }) {
  * Full exercise detail sheet: animation (kept from DemoModal) plus the
  * form guide — setup, cues, and common mistakes.
  */
-export function GuideSheet({ name, muscleGroup, onClose }) {
+export function GuideSheet({ name, muscleGroup, onClose, onEdit, onDelete }) {
   const src = demoForExercise(name);
   const guide = guideFor(name);
   const videoRef = useRef(null);
@@ -191,6 +196,20 @@ export function GuideSheet({ name, muscleGroup, onClose }) {
             <p className="footnote">No form guide for this exercise yet.</p>
             <div className="spacer-16" />
           </>
+        )}
+        {(onEdit || onDelete) && (
+          <div className="guide-actions">
+            {onEdit && (
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onEdit}>
+                Edit
+              </button>
+            )}
+            {onDelete && (
+              <button className="btn btn-danger" style={{ flex: 1 }} onClick={onDelete}>
+                Delete
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

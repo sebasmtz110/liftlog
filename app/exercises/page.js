@@ -285,7 +285,19 @@ export default function Exercises() {
       )}
 
       {guideEx && (
-        <GuideSheet name={guideEx.name} muscleGroup={guideEx.muscle_group} onClose={() => setGuideEx(null)} />
+        <GuideSheet
+          name={guideEx.name}
+          muscleGroup={guideEx.muscle_group}
+          onClose={() => setGuideEx(null)}
+          onEdit={() => {
+            openEdit(guideEx);
+            setGuideEx(null);
+          }}
+          onDelete={() => {
+            setConfirmDelete(guideEx.id);
+            setGuideEx(null);
+          }}
+        />
       )}
     </>
   );

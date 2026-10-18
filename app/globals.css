@@ -53,6 +53,11 @@ button {
   font: inherit;
   color: inherit;
   cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 a {
@@ -1229,3 +1234,21 @@ button.grouped-row:active {
   margin-bottom: 5px;
   font-size: 15px;
 }
+
+/* ---------- Body (weight + photos) ---------- */
+.body-sec { margin-top: 28px; }
+.bw-card { margin-top: 12px; }
+.bw-latest { font-size: 40px; font-weight: 800; letter-spacing: -0.5px; }
+.bw-latest small { font-size: 16px; font-weight: 600; color: var(--muted); }
+.bw-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.bw-hist-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.bw-hist-row:last-child { border-bottom: 0; }
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.photo-item { position: relative; border-radius: 10px; overflow: hidden; background: var(--card2); aspect-ratio: 3/4; }
+.photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-del { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 13px; background: rgba(0,0,0,0.65); color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.photo-date { font-size: 11px; color: var(--muted); margin-top: 12px; }
+.guide-actions { display: flex; gap: 10px; margin-top: 18px; }
+.tmpl-ed-del { flex-shrink: 0; width: 32px; height: 32px; border-radius: 16px; background: var(--card2); color: var(--danger); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.num-input { width: 100%; background: var(--card2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 28px; font-weight: 700; padding: 12px 14px; text-align: center; }
+.num-input:focus { outline: none; border-color: var(--pink); }

@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../lib/supabase";
+import { supabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY } from "../lib/supabase";
 import { formatDateTime } from "../lib/format";
 import { muscleTagClass } from "../lib/muscleColors";
+import { loadSplit } from "../lib/presets";
 import ConfigBanner from "./components/ConfigBanner";
 import { useAuth } from "./components/AuthContext";
 
 const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+const todayIdx = () => (new Date().getDay() + 6) % 7;
 
 /** 5400 -> "5.4k", 950 -> "950" */
 function fmtVol(v) {
@@ -83,12 +85,16 @@ export default function Home() {
   const [model, setModel] = useState(null);
   const [hasActive, setHasActive] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [startingTpl, setStartingTpl] = useState(null);
   const [todayLabel, setTodayLabel] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [goal, setGoal] = useState(4);
+  const [split, setSplit] = useState(null);
+  const [ti, setTi] = useState(null);
 
   useEffect(() => {
     const now = new Date();
+    setTi(todayIdx());
     setTodayLabel(
       now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }).toUpperCase()
     );
@@ -151,9 +157,31 @@ export default function Home() {
           .maybeSingle();
         if (profile?.display_name) setDisplayName(profile.display_name);
         if (profile?.weekly_goal) setGoal(profile.weekly_goal);
+        const s = await loadSplit(supabase, user.id);
+        setSplit(s);
       }
     })();
   }, [user]);
+
+  async function startFromTemplate(tpl) {
+    if (!user || startingTpl || !isConfigured) return;
+    setStartingTpl(tpl.id);
+    const { data, error } = await supabase
+      .from("workouts")
+      .insert({ started_at: new Date().toISOString(), user_id: user.id, template_id: tpl.id })
+      .select("id")
+      .single();
+    if (!error && data) {
+      const exIds = (tpl.template_exercises ?? [])
+        .slice()
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((te) => te.exercises.id);
+      if (exIds.length) localStorage.setItem(TEMPLATE_EXERCISES_KEY, JSON.stringify(exIds));
+      localStorage.setItem(ACTIVE_WORKOUT_KEY, data.id);
+      router.push("/session");
+    }
+    setStartingTpl(null);
+  }
 
   async function startWorkout() {
     if (!isConfigured || !user) return;
@@ -176,6 +204,10 @@ export default function Home() {
   const latestTitle = latest
     ? new Date(latest.started_at).toLocaleDateString(undefined, { weekday: "long" }) + " workout"
     : null;
+
+  // Today's split state (moved here from the Workout tab, like SebasFit's home).
+  const today = split && ti !== null ? split.days.find((d) => d.day_index === ti) : null;
+  const templates = split ? split.days.map((d) => d.template).filter(Boolean) : [];
 
   return (
     <>
@@ -218,6 +250,49 @@ export default function Home() {
             );
           })}
         </div>
+
+        {/* Today — training day or rest day, like SebasFit's home */}
+        {split && today && (
+          <>
+            <p className="kicker">TODAY</p>
+            <div className="spacer-8" />
+            {today.is_rest ? (
+              <div className="card">
+                <h2 className="large-title" style={{ margin: "0 0 6px" }}>Rest day</h2>
+                <p className="footnote">Recovery is when you grow. Eat enough protein, sleep 7–9h.</p>
+                <div className="spacer-12" />
+                <div className="chip-row">
+                  {templates.map((t) => (
+                    <button
+                      key={t.id}
+                      className="chip-btn"
+                      disabled={startingTpl !== null}
+                      onClick={() => startFromTemplate(t)}
+                    >
+                      Train {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : today.template ? (
+              <div className="card">
+                <p className="kicker">{today.label.toUpperCase()}</p>
+                <div className="spacer-8" />
+                {today.muscle_targets && <p className="footnote">{today.muscle_targets}</p>}
+                <div className="spacer-12" />
+                <button
+                  className="btn btn-filled"
+                  style={{ width: "100%" }}
+                  disabled={startingTpl === today.template.id}
+                  onClick={() => startFromTemplate(today.template)}
+                >
+                  {startingTpl === today.template.id ? "Starting…" : `Start ${today.template.name}`}
+                </button>
+              </div>
+            ) : null}
+            <div className="spacer-16" />
+          </>
+        )}
 
         {/* Hero card — latest finished workout, or empty state */}
         <div className="card">

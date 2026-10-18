@@ -221,7 +221,6 @@ export default function Workout() {
 
   const doneCount = split.days.filter((d) => !d.is_rest && trainedDays.has(d.day_index)).length;
   const trainDays = split.days.filter((d) => !d.is_rest).length;
-  const today = ti === null ? null : split.days.find((d) => d.day_index === ti);
   const templates = split.days.map((d) => d.template).filter(Boolean);
   const progress = trainDays ? Math.min(100, Math.round((doneCount / trainDays) * 100)) : 0;
 
@@ -307,37 +306,6 @@ export default function Workout() {
             ))}
           </div>
         )}
-
-        {/* Today */}
-        <div className="spacer-16" />
-        <p className="kicker">TODAY</p>
-        <div className="spacer-8" />
-        {today?.is_rest ? (
-          <div className="card">
-            <h2 className="large-title" style={{ margin: "0 0 6px" }}>Rest day</h2>
-            <p className="footnote">Recovery is when you grow. Eat enough protein, sleep 7–9h.</p>
-            <div className="spacer-12" />
-            <div className="chip-row">
-              {templates.map((t) => (
-                <button key={t.id} className="chip-btn" onClick={() => startFromTemplate(t)}>
-                  Train {t.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : today?.template ? (
-          <div className="card">
-            <p className="kicker">{today.label.toUpperCase()}</p>
-            <div className="spacer-8" />
-            <p className="footnote">{today.muscle_targets}</p>
-            <div className="spacer-12" />
-            <button className="btn btn-filled" style={{ width: "100%" }}
-              disabled={starting === today.template.id}
-              onClick={() => startFromTemplate(today.template)}>
-              {starting === today.template.id ? "Starting…" : `Start ${today.template.name}`}
-            </button>
-          </div>
-        ) : null}
 
         {/* Workout templates */}
         <div className="spacer-24" />
