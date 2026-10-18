@@ -1,5 +1,6 @@
 import "./globals.css";
-import TabBar from "./components/TabBar";
+import { AuthProvider } from "./components/AuthContext";
+import AuthGate from "./components/AuthGate";
 
 export const metadata = {
   title: "LiftLog",
@@ -17,10 +18,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <div className="app-shell">
-          <main className="app-main">{children}</main>
-          <TabBar />
-        </div>
+        <AuthProvider>
+          <AuthGate>{children}</AuthGate>
+        </AuthProvider>
       </body>
     </html>
   );

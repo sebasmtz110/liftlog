@@ -6,6 +6,7 @@ import { supabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../lib/supabase";
 import { formatDateTime } from "../lib/format";
 import { muscleTagClass } from "../lib/muscleColors";
 import ConfigBanner from "./components/ConfigBanner";
+import { useAuth } from "./components/AuthContext";
 
 const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
@@ -76,6 +77,7 @@ function workoutVolume(w) {
 
 export default function Home() {
   const router = useRouter();
+  const { user, signOut } = useAuth();
   // All date math happens inside the effect so the render stays deterministic
   // (Next.js prerender rejects `new Date()` during render).
   const [model, setModel] = useState(null);
@@ -133,11 +135,11 @@ export default function Home() {
   }, []);
 
   async function startWorkout() {
-    if (!isConfigured) return;
+    if (!isConfigured || !user) return;
     setStarting(true);
     const { data, error } = await supabase
       .from("workouts")
-      .insert({ started_at: new Date().toISOString() })
+      .insert({ started_at: new Date().toISOString(), user_id: user.id })
       .select("id")
       .single();
     setStarting(false);
@@ -165,6 +167,17 @@ export default function Home() {
             <DumbbellGlyph />
           </span>
         </div>
+        {user && (
+          <p className="footnote" style={{ marginTop: 6 }}>
+            {user.email} ·{" "}
+            <button
+              onClick={signOut}
+              style={{ color: "var(--mu)", textDecoration: "underline", background: "none", border: 0, padding: 0 }}
+            >
+              Sign out
+            </button>
+          </p>
+        )}
       </header>
 
       <div className="screen-body">
