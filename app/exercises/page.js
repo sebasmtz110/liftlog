@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase, isConfigured } from "../../lib/supabase";
 import { hasDemo } from "../../lib/exerciseDemos";
-import { DemoThumb, DemoModal } from "../components/ExerciseDemo";
+import { DemoThumb, GuideSheet } from "../components/ExerciseDemo";
 import { muscleTagClass } from "../../lib/muscleColors";
 import ConfigBanner from "../components/ConfigBanner";
 
@@ -21,7 +21,7 @@ export default function Exercises() {
   const [name, setName] = useState("");
   const [muscleGroup, setMuscleGroup] = useState("");
   const [saving, setSaving] = useState(false);
-  const [demoName, setDemoName] = useState(null);
+  const [guideEx, setGuideEx] = useState(null);
   const [notice, setNotice] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null); // exercise id
 
@@ -143,19 +143,24 @@ export default function Exercises() {
                 {hasDemo(e.name) ? (
                   <button
                     className="demo-thumb-btn"
-                    onClick={() => setDemoName(e.name)}
-                    aria-label={`Watch ${e.name} demo`}
+                    onClick={() => setGuideEx(e)}
+                    aria-label={`${e.name} details`}
                   >
                     <DemoThumb name={e.name} />
                   </button>
                 ) : (
                   <span className="demo-thumb-empty" aria-hidden="true" />
                 )}
-                <div className="grouped-row-main">
+                <button
+                  className="grouped-row-main"
+                  style={{ textAlign: "left" }}
+                  onClick={() => setGuideEx(e)}
+                  aria-label={`${e.name} details`}
+                >
                   <span className="grouped-row-title">{e.name}</span>
                   <div className="spacer-4" />
                   <span className={`muscle-tag ${muscleTagClass(e.muscle_group)}`}>{e.muscle_group}</span>
-                </div>
+                </button>
                 <div className="grouped-row-actions">
                   <button
                     className="icon-btn"
@@ -279,7 +284,9 @@ export default function Exercises() {
         </div>
       )}
 
-      {demoName && <DemoModal name={demoName} onClose={() => setDemoName(null)} />}
+      {guideEx && (
+        <GuideSheet name={guideEx.name} muscleGroup={guideEx.muscle_group} onClose={() => setGuideEx(null)} />
+      )}
     </>
   );
 }

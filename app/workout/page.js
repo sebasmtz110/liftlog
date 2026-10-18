@@ -2,164 +2,191 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../../lib/supabase";
-import { formatDateTime } from "../../lib/format";
+import { supabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY } from "../../lib/supabase";
+import { useAuth } from "../components/AuthContext";
+import { loadSplit, applySplit, buildSplit, PRESETS, PRESET_ORDER, DAY_NAMES } from "../../lib/presets";
+import { muscleTagClass } from "../../lib/muscleColors";
 import ConfigBanner from "../components/ConfigBanner";
 import { DemoThumb } from "../components/ExerciseDemo";
-import { muscleTagClass } from "../../lib/muscleColors";
 
-/**
- * Active workout screen: add exercises from the catalog, log sets
- * (reps + weight), delete sets, finish the workout.
- */
+/** Monday 00:00 of the week containing `d` (local time). */
+function mondayOf(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+const todayIdx = () => (new Date().getDay() + 6) % 7;
+
+function muscleChips(template) {
+  const seen = [];
+  for (const te of template?.template_exercises ?? []) {
+    const m = te.exercises?.muscle_group;
+    if (m && !seen.includes(m)) seen.push(m);
+  }
+  return seen;
+}
+
 export default function Workout() {
   const router = useRouter();
-  const [workoutId, setWorkoutId] = useState(null);
-  const [startedAt, setStartedAt] = useState(null);
+  const { user } = useAuth();
+  const [split, setSplit] = useState(null);
+  const [goal, setGoal] = useState(4);
+  const [trainedDays, setTrainedDays] = useState(new Set());
   const [catalog, setCatalog] = useState([]);
-  const [sets, setSets] = useState([]);
-  const [addedExerciseIds, setAddedExerciseIds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState(null);
+
+  // split editing
+  const [editing, setEditing] = useState(false);
+  const [draftDays, setDraftDays] = useState([]);
+  const [switching, setSwitching] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // template editor
+  const [editor, setEditor] = useState(null); // {id, name, items:[{key, exercise_id, name, scheme}]}
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [drafts, setDrafts] = useState({}); // exerciseId -> { reps, weight }
-  const [loading, setLoading] = useState(true);
-  const [finishing, setFinishing] = useState(false);
+  // todayIdx in state: Next.js prerender rejects `new Date()` during render.
+  const [ti, setTi] = useState(null);
 
-  useEffect(() => {
-    const id = localStorage.getItem(ACTIVE_WORKOUT_KEY);
-    if (!id) {
+  async function refresh() {
+    if (!user || !isConfigured) {
       setLoading(false);
       return;
     }
-    setWorkoutId(id);
-    if (!isConfigured) {
-      setLoading(false);
-      return;
+    const [s, { data: profile }, { data: workouts }, { data: exercises }] = await Promise.all([
+      loadSplit(supabase, user.id),
+      supabase.from("profiles").select("weekly_goal").eq("id", user.id).maybeSingle(),
+      supabase.from("workouts").select("started_at").not("ended_at", "is", null),
+      supabase.from("exercises").select("id, name, muscle_group").order("name"),
+    ]);
+    setSplit(s);
+    if (profile?.weekly_goal) setGoal(profile.weekly_goal);
+    if (exercises) setCatalog(exercises);
+    const weekStart = mondayOf(new Date());
+    const days = new Set();
+    for (const w of workouts ?? []) {
+      const d = new Date(w.started_at);
+      if (d >= weekStart) days.add((d.getDay() + 6) % 7);
     }
-    (async () => {
-      const [{ data: workout }, { data: exercises }] = await Promise.all([
-        supabase.from("workouts").select("id, started_at, ended_at").eq("id", id).single(),
-        supabase.from("exercises").select("id, name, muscle_group").order("name"),
-      ]);
-      if (!workout || workout.ended_at) {
-        // Stale id (workout already finished) — clean up.
-        localStorage.removeItem(ACTIVE_WORKOUT_KEY);
-        setWorkoutId(null);
-        setLoading(false);
-        return;
-      }
-      setStartedAt(workout.started_at);
-      if (exercises) setCatalog(exercises);
-      await refreshSets(id);
-      setLoading(false);
-    })();
-  }, []);
-
-  async function refreshSets(id) {
-    const { data } = await supabase
-      .from("sets")
-      .select("id, set_number, reps, weight, exercise_id, exercises(name, muscle_group)")
-      .eq("workout_id", id)
-      .order("created_at", { ascending: true });
-    if (data) {
-      setSets(data);
-      setAddedExerciseIds((prev) => {
-        const fromSets = [...new Set(data.map((s) => s.exercise_id))];
-        return [...new Set([...prev, ...fromSets])];
-      });
-    }
+    setTrainedDays(days);
+    setLoading(false);
   }
 
-  const grouped = useMemo(() => {
-    const map = new Map();
-    for (const exId of addedExerciseIds) {
-      const ex = catalog.find((e) => e.id === exId);
-      if (ex) map.set(exId, { exercise: ex, sets: [] });
-    }
-    for (const s of sets) {
-      if (!map.has(s.exercise_id)) {
-        map.set(s.exercise_id, {
-          exercise: { id: s.exercise_id, name: s.exercises?.name ?? "Exercise", muscle_group: s.exercises?.muscle_group ?? "" },
-          sets: [],
-        });
-      }
-      map.get(s.exercise_id).sets.push(s);
-    }
-    return [...map.values()];
-  }, [addedExerciseIds, catalog, sets]);
+  useEffect(() => {
+    setTi(todayIdx());
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
-  const filteredCatalog = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return catalog.filter(
-      (e) =>
-        !addedExerciseIds.includes(e.id) &&
-        (!q || e.name.toLowerCase().includes(q) || e.muscle_group.toLowerCase().includes(q))
-    );
-  }, [catalog, addedExerciseIds, query]);
+  async function startFromTemplate(tpl) {
+    if (!user || starting) return;
+    setStarting(tpl.id);
+    const { data, error } = await supabase
+      .from("workouts")
+      .insert({ started_at: new Date().toISOString(), user_id: user.id, template_id: tpl.id })
+      .select("id")
+      .single();
+    if (!error && data) {
+      const exIds = (tpl.template_exercises ?? [])
+        .slice()
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((te) => te.exercises.id);
+      if (exIds.length) localStorage.setItem(TEMPLATE_EXERCISES_KEY, JSON.stringify(exIds));
+      localStorage.setItem(ACTIVE_WORKOUT_KEY, data.id);
+      router.push("/session");
+    }
+    setStarting(null);
+  }
 
-  function addExercise(id) {
-    setAddedExerciseIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    setDrafts((d) => ({ ...d, [id]: d[id] ?? { reps: "", weight: "" } }));
-    setPickerOpen(false);
+  function beginEdit() {
+    setDraftDays(split.days.map((d) => ({ ...d })));
+    setEditing(true);
+    setSwitching(false);
+  }
+
+  async function saveSplit() {
+    setSaving(true);
+    for (const d of draftDays) {
+      await supabase
+        .from("split_days")
+        .update({ label: d.label, is_rest: d.is_rest, muscle_targets: d.is_rest ? "" : d.muscle_targets })
+        .eq("id", d.id);
+    }
+    setSaving(false);
+    setEditing(false);
+    refresh();
+  }
+
+  async function switchPreset(key) {
+    setSaving(true);
+    const built = buildSplit(key);
+    await applySplit(supabase, user.id, built);
+    setSaving(false);
+    setEditing(false);
+    setSwitching(false);
+    refresh();
+  }
+
+  function openEditor(tpl) {
+    setEditor({
+      id: tpl.id,
+      name: tpl.name,
+      items: (tpl.template_exercises ?? [])
+        .slice()
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((te, i) => ({ key: `x${i}`, exercise_id: te.exercises.id, name: te.exercises.name, scheme: te.set_scheme })),
+    });
     setQuery("");
   }
 
-  async function logSet(exerciseId) {
-    const draft = drafts[exerciseId] ?? {};
-    const reps = parseInt(draft.reps, 10);
-    const weight = parseFloat(draft.weight);
-    if (!reps || reps <= 0) return;
-    const existing = sets.filter((s) => s.exercise_id === exerciseId).length;
-    const { error } = await supabase.from("sets").insert({
-      workout_id: workoutId,
-      exercise_id: exerciseId,
-      set_number: existing + 1,
-      reps,
-      weight: Number.isFinite(weight) ? weight : 0,
-    });
-    if (!error) {
-      setDrafts((d) => ({ ...d, [exerciseId]: { reps: "", weight: "" } }));
-      await refreshSets(workoutId);
+  async function newTemplate() {
+    const { data, error } = await supabase
+      .from("workout_templates")
+      .insert({ user_id: user.id, name: "New workout" })
+      .select("id, name")
+      .single();
+    if (!error && data) {
+      setEditor({ id: data.id, name: data.name, items: [] });
+      setQuery("");
     }
   }
 
-  async function deleteSet(setId, exerciseId) {
-    const { error } = await supabase.from("sets").delete().eq("id", setId);
-    if (error) return;
-    const remaining = sets
-      .filter((s) => s.exercise_id === exerciseId && s.id !== setId)
-      .sort((a, b) => a.set_number - b.set_number);
-    // Renumber remaining sets so set numbers stay sequential.
-    await Promise.all(
-      remaining.map((s, i) =>
-        supabase.from("sets").update({ set_number: i + 1 }).eq("id", s.id)
-      )
+  async function saveTemplate() {
+    if (!editor) return;
+    setSaving(true);
+    const cleanName = editor.name.trim() || "Workout";
+    await supabase.from("workout_templates").update({ name: cleanName }).eq("id", editor.id);
+    await supabase.from("template_exercises").delete().eq("template_id", editor.id);
+    let order = 0;
+    for (const it of editor.items) {
+      await supabase.from("template_exercises").insert({
+        template_id: editor.id,
+        exercise_id: it.exercise_id,
+        set_scheme: it.scheme.trim(),
+        sort_order: order++,
+      });
+    }
+    setSaving(false);
+    setEditor(null);
+    refresh();
+  }
+
+  async function deleteTemplate() {
+    if (!editor || !window.confirm(`Delete "${editor.name}"?`)) return;
+    await supabase.from("workout_templates").delete().eq("id", editor.id);
+    setEditor(null);
+    refresh();
+  }
+
+  const filteredCatalog = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const used = new Set((editor?.items ?? []).map((i) => i.exercise_id));
+    return catalog.filter(
+      (e) => !used.has(e.id) && (!q || e.name.toLowerCase().includes(q) || e.muscle_group.toLowerCase().includes(q))
     );
-    await refreshSets(workoutId);
-  }
-
-  async function finishWorkout() {
-    if (!workoutId) return;
-    setFinishing(true);
-    const { error } = await supabase
-      .from("workouts")
-      .update({ ended_at: new Date().toISOString() })
-      .eq("id", workoutId);
-    setFinishing(false);
-    if (!error) {
-      localStorage.removeItem(ACTIVE_WORKOUT_KEY);
-      router.push("/history");
-    }
-  }
-
-  async function discardWorkout() {
-    if (!workoutId) return;
-    if (!window.confirm("Discard this workout and all its sets?")) return;
-    await supabase.from("sets").delete().eq("workout_id", workoutId);
-    await supabase.from("workouts").delete().eq("id", workoutId);
-    localStorage.removeItem(ACTIVE_WORKOUT_KEY);
-    router.push("/");
-  }
+  }, [catalog, query, editor]);
 
   if (loading) {
     return (
@@ -170,7 +197,7 @@ export default function Workout() {
     );
   }
 
-  if (!workoutId) {
+  if (!split) {
     return (
       <>
         <ConfigBanner />
@@ -178,106 +205,243 @@ export default function Workout() {
           <h1 className="large-title">Workout</h1>
         </header>
         <div className="screen-body">
-          <div className="empty">
-            <p className="headline">No active workout</p>
+          <div className="card">
+            <p className="kicker">NO SPLIT YET</p>
             <div className="spacer-8" />
-            <p className="footnote">Start one from the Home tab to begin logging sets.</p>
+            <p className="body">Set up your training split to get planned workouts with a single-tap Start.</p>
+            <div className="spacer-16" />
+            <button className="btn btn-filled" style={{ width: "100%" }} onClick={newTemplate}>
+              + New workout
+            </button>
           </div>
         </div>
       </>
     );
   }
 
+  const doneCount = split.days.filter((d) => !d.is_rest && trainedDays.has(d.day_index)).length;
+  const trainDays = split.days.filter((d) => !d.is_rest).length;
+  const today = ti === null ? null : split.days.find((d) => d.day_index === ti);
+  const templates = split.days.map((d) => d.template).filter(Boolean);
+  const progress = trainDays ? Math.min(100, Math.round((doneCount / trainDays) * 100)) : 0;
+
   return (
     <>
       <ConfigBanner />
       <header className="screen-head">
-        <p className="kicker-tight">{startedAt ? formatDateTime(startedAt).toUpperCase() : "IN PROGRESS"}</p>
-        <h1 className="large-title">Workout</h1>
+        <div className="quiz-head-row">
+          <h1 className="large-title">My Split</h1>
+          {!editing && (
+            <button className="btn btn-plain" onClick={beginEdit}>Edit</button>
+          )}
+        </div>
+        <p className="footnote">{doneCount}/{Math.max(trainDays, goal)} this week</p>
+        <div className="spacer-8" />
+        <div className="vol-bar"><div className="vol-fill" style={{ width: `${progress}%` }} /></div>
       </header>
 
       <div className="screen-body">
-        {grouped.length === 0 ? (
-          <div className="card">
-            <p className="body">Add your first exercise to start logging sets.</p>
-          </div>
-        ) : (
-          grouped.map(({ exercise, sets: exSets }) => {
-            const draft = drafts[exercise.id] ?? { reps: "", weight: "" };
-            return (
-              <div className="card" key={exercise.id}>
-                <div className="workout-row-head">
-                  <p className="headline">{exercise.name}</p>
-                  <span className={`muscle-tag ${muscleTagClass(exercise.muscle_group)}`}>{exercise.muscle_group}</span>
-                </div>
-                <div className="spacer-8" />
-                {exSets.map((s) => (
-                  <div className="set-row" key={s.id}>
-                    <span className="set-num">{s.set_number}</span>
-                    <span className="set-val">{s.reps} reps</span>
-                    <span className="set-val">{s.weight} lb</span>
+        {editing ? (
+          <div className="card" style={{ padding: "6px 16px" }}>
+            {!switching ? (
+              <>
+                {draftDays.map((d, i) => (
+                  <div key={d.id} className="split-day-row">
+                    <span className="split-day-name">{DAY_NAMES[d.day_index]}</span>
+                    <input
+                      className="input"
+                      value={d.label}
+                      onChange={(e) => setDraftDays((p) => p.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                      style={{ flex: 1 }}
+                    />
                     <button
-                      className="icon-btn"
-                      aria-label={`Delete set ${s.set_number}`}
-                      onClick={() => deleteSet(s.id, exercise.id)}
+                      className={`btn ${d.is_rest ? "btn-tinted" : "btn-gray"}`}
+                      style={{ padding: "8px 12px", fontSize: 13 }}
+                      onClick={() => setDraftDays((p) => p.map((x, j) => (j === i ? { ...x, is_rest: !x.is_rest } : x)))}
                     >
-                      ×
+                      {d.is_rest ? "Rest" : "Train"}
                     </button>
                   </div>
                 ))}
-                <div className="spacer-8" />
-                <div className="row-2">
-                  <div className="field" style={{ marginBottom: 0 }}>
-                    <label htmlFor={`reps-${exercise.id}`}>Reps</label>
-                    <input
-                      id={`reps-${exercise.id}`}
-                      className="input"
-                      inputMode="numeric"
-                      placeholder="10"
-                      value={draft.reps}
-                      onChange={(e) =>
-                        setDrafts((d) => ({ ...d, [exercise.id]: { ...draft, reps: e.target.value } }))
-                      }
-                    />
-                  </div>
-                  <div className="field" style={{ marginBottom: 0 }}>
-                    <label htmlFor={`weight-${exercise.id}`}>Weight (lb)</label>
-                    <input
-                      id={`weight-${exercise.id}`}
-                      className="input"
-                      inputMode="decimal"
-                      placeholder="135"
-                      value={draft.weight}
-                      onChange={(e) =>
-                        setDrafts((d) => ({ ...d, [exercise.id]: { ...draft, weight: e.target.value } }))
-                      }
-                    />
-                  </div>
+                <div className="spacer-12" />
+                <div className="btn-row">
+                  <button className="btn btn-filled" disabled={saving} onClick={saveSplit}>
+                    {saving ? "Saving…" : "Save"}
+                  </button>
+                  <button className="btn btn-gray" onClick={() => setEditing(false)}>Cancel</button>
                 </div>
                 <div className="spacer-12" />
-                <button className="btn btn-tinted" style={{ width: "100%" }} onClick={() => logSet(exercise.id)}>
-                  + Log set
+                <button className="btn btn-plain" style={{ width: "100%" }} onClick={() => setSwitching(true)}>
+                  Switch to a different split
                 </button>
+                <div className="spacer-8" />
+              </>
+            ) : (
+              <>
+                {PRESET_ORDER.map((key) => (
+                  <button key={key} className="choice-row" disabled={saving}
+                    onClick={() => switchPreset(key)}>
+                    <span className="headline">{PRESETS[key].name}</span>
+                    <span className="footnote">{PRESETS[key].daysPerWeek} days/week · {PRESETS[key].blurb}</span>
+                  </button>
+                ))}
+                <button className="btn btn-plain" style={{ width: "100%" }} onClick={() => setSwitching(false)}>
+                  Back
+                </button>
+                <div className="spacer-8" />
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="card" style={{ padding: "6px 16px" }}>
+            {split.days.map((d) => (
+              <div key={d.id} className="split-day-row">
+                <span className={`split-day-name${d.is_rest ? " rest" : ""}`}>{DAY_NAMES[d.day_index]}</span>
+                <div className="split-day-info">
+                  <p className="headline">{d.label}</p>
+                  {!d.is_rest && d.muscle_targets && <p className="footnote">{d.muscle_targets}</p>}
+                </div>
+                {!d.is_rest && trainedDays.has(d.day_index) && <span className="split-check">✓</span>}
+                {d.day_index === ti && <span className="today-pill">TODAY</span>}
               </div>
-            );
-          })
+            ))}
+          </div>
         )}
 
+        {/* Today */}
         <div className="spacer-16" />
-        <button className="btn btn-gray" style={{ width: "100%" }} onClick={() => setPickerOpen(true)}>
-          + Add exercise
-        </button>
+        <p className="kicker">TODAY</p>
+        <div className="spacer-8" />
+        {today?.is_rest ? (
+          <div className="card">
+            <h2 className="large-title" style={{ margin: "0 0 6px" }}>Rest day</h2>
+            <p className="footnote">Recovery is when you grow. Eat enough protein, sleep 7–9h.</p>
+            <div className="spacer-12" />
+            <div className="chip-row">
+              {templates.map((t) => (
+                <button key={t.id} className="chip-btn" onClick={() => startFromTemplate(t)}>
+                  Train {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : today?.template ? (
+          <div className="card">
+            <p className="kicker">{today.label.toUpperCase()}</p>
+            <div className="spacer-8" />
+            <p className="footnote">{today.muscle_targets}</p>
+            <div className="spacer-12" />
+            <button className="btn btn-filled" style={{ width: "100%" }}
+              disabled={starting === today.template.id}
+              onClick={() => startFromTemplate(today.template)}>
+              {starting === today.template.id ? "Starting…" : `Start ${today.template.name}`}
+            </button>
+          </div>
+        ) : null}
 
+        {/* Workout templates */}
         <div className="spacer-24" />
-        <button className="btn btn-filled" onClick={finishWorkout} disabled={finishing}>
-          {finishing ? "Finishing…" : "Finish workout"}
-        </button>
+        <div className="quiz-head-row">
+          <h2 className="section-title" style={{ margin: 0 }}>Workouts</h2>
+          <button className="btn btn-gray" style={{ padding: "8px 14px", fontSize: 14 }} onClick={newTemplate}>
+            + New
+          </button>
+        </div>
         <div className="spacer-12" />
-        <button className="btn btn-plain" style={{ width: "100%" }} onClick={discardWorkout}>
-          Discard workout
-        </button>
+        {templates.map((t) => (
+          <div key={t.id} className="template-card">
+            <div className="template-head">
+              <h3 className="title-2" style={{ margin: 0 }}>{t.name}</h3>
+              <button className="btn btn-plain" style={{ fontSize: 14 }} onClick={() => openEditor(t)}>Edit</button>
+            </div>
+            <p className="footnote">
+              {(t.template_exercises ?? []).length} exercises
+              {t.est_minutes ? ` · ~${t.est_minutes} min` : ""}
+            </p>
+            <div className="spacer-8" />
+            <div className="chip-row">
+              {muscleChips(t).map((m) => (
+                <span key={m} className={`muscle-tag ${muscleTagClass(m)}`}>{m}</span>
+              ))}
+            </div>
+            <div className="spacer-8" />
+            {(t.template_exercises ?? [])
+              .slice()
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((te) => (
+                <div key={te.exercises.id} className="template-ex-row">
+                  <span className="body">{te.exercises.name}</span>
+                  <span className="scheme">{te.set_scheme}</span>
+                </div>
+              ))}
+            <div className="spacer-12" />
+            <button className="btn btn-filled" style={{ width: "100%" }}
+              disabled={starting === t.id}
+              onClick={() => startFromTemplate(t)}>
+              {starting === t.id ? "Starting…" : "Start"}
+            </button>
+          </div>
+        ))}
       </div>
 
+      {/* Template editor sheet */}
+      {editor && (
+        <div className="sheet-backdrop" onClick={() => setEditor(null)}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label="Edit workout"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="grabber" />
+            <div className="sheet-head">
+              <p className="title-2">Edit workout</p>
+              <button className="btn btn-plain" onClick={() => setEditor(null)}>Done</button>
+            </div>
+            <div className="field">
+              <label htmlFor="tpl-name">Name</label>
+              <input
+                id="tpl-name"
+                className="input"
+                value={editor.name}
+                onChange={(e) => setEditor((p) => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+            {editor.items.map((it, i) => (
+              <div key={it.key} className="set-row" style={{ marginBottom: 8 }}>
+                <span className="body" style={{ flex: 1 }}>{it.name}</span>
+                <input
+                  className="input"
+                  style={{ width: 90 }}
+                  value={it.scheme}
+                  placeholder="3x8-12"
+                  aria-label={`Set scheme for ${it.name}`}
+                  onChange={(e) =>
+                    setEditor((p) => ({ ...p, items: p.items.map((x, j) => (j === i ? { ...x, scheme: e.target.value } : x)) }))
+                  }
+                />
+                <button
+                  className="icon-btn"
+                  aria-label={`Remove ${it.name}`}
+                  onClick={() => setEditor((p) => ({ ...p, items: p.items.filter((_, j) => j !== i) }))}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <div className="spacer-8" />
+            <button className="btn btn-gray" style={{ width: "100%" }} onClick={() => setPickerOpen(true)}>
+              + Add exercise
+            </button>
+            <div className="spacer-12" />
+            <button className="btn btn-filled" style={{ width: "100%" }} disabled={saving} onClick={saveTemplate}>
+              {saving ? "Saving…" : "Save workout"}
+            </button>
+            <div className="spacer-12" />
+            <button className="btn btn-bad" style={{ width: "100%" }} onClick={deleteTemplate}>
+              Delete workout
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Exercise picker sheet */}
       {pickerOpen && (
         <div className="sheet-backdrop" onClick={() => setPickerOpen(false)}>
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Add exercise"
@@ -296,23 +460,28 @@ export default function Workout() {
                 autoFocus
               />
             </div>
-            {filteredCatalog.length === 0 ? (
-              <p className="footnote" style={{ padding: "12px 4px" }}>
-                {catalog.length === 0 ? "No exercises found — run the seed data in supabase/schema.sql." : "No matches."}
-              </p>
-            ) : (
-              <div className="grouped-list">
-                {filteredCatalog.map((e) => (
-                  <button key={e.id} className="grouped-row" onClick={() => addExercise(e.id)}>
-                    <span className="grouped-row-thumb">
-                      <DemoThumb name={e.name} />
-                      <span className="grouped-row-title">{e.name}</span>
-                    </span>
-                    <span className={`muscle-tag ${muscleTagClass(e.muscle_group)}`}>{e.muscle_group}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="grouped-list">
+              {filteredCatalog.map((e) => (
+                <button
+                  key={e.id}
+                  className="grouped-row"
+                  onClick={() => {
+                    setEditor((p) => ({
+                      ...p,
+                      items: [...p.items, { key: `n${Date.now()}`, exercise_id: e.id, name: e.name, scheme: "3x8-12" }],
+                    }));
+                    setPickerOpen(false);
+                    setQuery("");
+                  }}
+                >
+                  <span className="grouped-row-thumb">
+                    <DemoThumb name={e.name} />
+                    <span className="grouped-row-title">{e.name}</span>
+                  </span>
+                  <span className={`muscle-tag ${muscleTagClass(e.muscle_group)}`}>{e.muscle_group}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

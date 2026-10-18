@@ -991,3 +991,241 @@ button.grouped-row:active {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---------- Onboarding quiz ---------- */
+.quiz-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.choice-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+.choice-row.selected {
+  border-color: var(--pink);
+}
+
+/* ---------- Split view ---------- */
+.split-day-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--bd);
+}
+.split-day-row:last-child {
+  border-bottom: 0;
+}
+.split-day-name {
+  width: 44px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--mu);
+  flex-shrink: 0;
+}
+.split-day-name.rest {
+  color: var(--pink);
+}
+.split-day-info {
+  flex: 1;
+  min-width: 0;
+}
+.split-day-info .headline {
+  margin: 0 0 2px;
+}
+.split-day-info .footnote {
+  margin: 0;
+}
+.split-check {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--pink);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.today-pill {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--pink);
+  border: 1.5px solid var(--pink);
+  border-radius: 999px;
+  padding: 5px 10px;
+  flex-shrink: 0;
+}
+.template-card {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 22px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.template-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.template-ex-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--bd);
+}
+.template-ex-row:last-child {
+  border-bottom: 0;
+}
+.template-ex-row .scheme {
+  color: var(--mu);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.btn-row {
+  display: flex;
+  gap: 10px;
+}
+.btn-row .btn {
+  flex: 1;
+}
+
+/* ---------- Segmented control ---------- */
+.seg {
+  display: flex;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 16px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+.seg button {
+  flex: 1;
+  border: 0;
+  background: none;
+  color: var(--mu);
+  font-weight: 700;
+  padding: 10px 0;
+  border-radius: 12px;
+}
+.seg button.on {
+  background: var(--pink);
+  color: #fff;
+}
+
+/* ---------- Volume bars ---------- */
+.vol-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bd);
+}
+.vol-row:last-child {
+  border-bottom: 0;
+}
+.vol-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.vol-bar {
+  height: 8px;
+  border-radius: 99px;
+  background: #2a2a2e;
+  overflow: hidden;
+}
+.vol-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #7c8cff, var(--pink));
+}
+.vol-badge {
+  font-size: 11px;
+  font-weight: 800;
+  background: #2a2a2e;
+  border-radius: 8px;
+  padding: 3px 8px;
+  margin-left: 8px;
+  color: var(--tx);
+}
+
+/* ---------- Coach ---------- */
+.chat-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-bubble {
+  max-width: 88%;
+  padding: 12px 15px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.chat-bubble.them {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  align-self: flex-start;
+  border-bottom-left-radius: 6px;
+}
+.chat-bubble.me {
+  background: var(--pink);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 6px;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip-btn {
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--tx);
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.chat-input-row .input {
+  flex: 1;
+}
+
+/* ---------- Guide sheet ---------- */
+.guide-sec {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--mu);
+  margin: 14px 0 6px;
+}
+.guide-list {
+  margin: 0;
+  padding-left: 18px;
+}
+.guide-list li {
+  margin-bottom: 5px;
+  font-size: 15px;
+}

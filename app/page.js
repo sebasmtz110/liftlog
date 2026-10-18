@@ -84,6 +84,8 @@ export default function Home() {
   const [hasActive, setHasActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [todayLabel, setTodayLabel] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [goal, setGoal] = useState(4);
 
   useEffect(() => {
     const now = new Date();
@@ -117,11 +119,20 @@ export default function Home() {
         .from("workouts")
         .select("id, started_at, ended_at, sets(id, reps, weight, exercise_id, exercises(name, muscle_group))")
         .order("started_at", { ascending: false })
-        .limit(12);
+        .limit(60);
       const all = data ?? [];
       const finished = all.filter((w) => w.ended_at);
       const weekWorkouts = finished.filter((w) => new Date(w.started_at) >= weekStart);
       const weekSets = weekWorkouts.flatMap((w) => w.sets ?? []);
+      // Streak: consecutive days (ending today or yesterday) with a workout.
+      const daySet = new Set(finished.map((w) => new Date(w.started_at).toDateString()));
+      let streak = 0;
+      const cursor = new Date(now);
+      if (!daySet.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
+      while (daySet.has(cursor.toDateString())) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
       setModel({
         ...base,
         logged: weekWorkouts.map((w) => new Date(w.started_at).toDateString()),
@@ -130,9 +141,19 @@ export default function Home() {
         weekWorkouts,
         weekVolume: weekSets.reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0),
         weekSetCount: weekSets.length,
+        streak,
       });
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name, weekly_goal")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile?.display_name) setDisplayName(profile.display_name);
+        if (profile?.weekly_goal) setGoal(profile.weekly_goal);
+      }
     })();
-  }, []);
+  }, [user]);
 
   async function startWorkout() {
     if (!isConfigured || !user) return;
@@ -145,7 +166,7 @@ export default function Home() {
     setStarting(false);
     if (error || !data) return;
     localStorage.setItem(ACTIVE_WORKOUT_KEY, data.id);
-    router.push("/workout");
+    router.push("/session");
   }
 
   const m = model;
@@ -162,7 +183,7 @@ export default function Home() {
       <header className="screen-head">
         <p className="sl-date">{todayLabel}</p>
         <div className="greet-row">
-          <h1 className="large-title">Hey, lifter</h1>
+          <h1 className="large-title">Hey, {displayName || "lifter"}</h1>
           <span className="avatar-circle" aria-hidden="true">
             <DumbbellGlyph />
           </span>
@@ -232,7 +253,7 @@ export default function Home() {
           )}
           <button
             className="btn btn-filled"
-            onClick={hasActive ? () => router.push("/workout") : startWorkout}
+            onClick={hasActive ? () => router.push("/session") : startWorkout}
             disabled={starting || !isConfigured}
           >
             {starting ? "Starting…" : hasActive ? "Resume workout" : "Start workout"}
@@ -248,17 +269,17 @@ export default function Home() {
             <div className="stat-card">
               <p className="stat-kicker">Workouts</p>
               <p className="stat-value">{m.weekWorkouts.length}</p>
-              <p className="stat-label">this week</p>
+              <p className="stat-label">of {goal} goal</p>
             </div>
             <div className="stat-card">
               <p className="stat-kicker">Volume</p>
               <p className="stat-value">{fmtVol(m.weekVolume)}</p>
-              <p className="stat-label">lb this week</p>
+              <p className="stat-label">lb lifted</p>
             </div>
             <div className="stat-card">
-              <p className="stat-kicker">Sets</p>
-              <p className="stat-value">{m.weekSetCount}</p>
-              <p className="stat-label">this week</p>
+              <p className="stat-kicker">Streak</p>
+              <p className="stat-value">{m.streak}</p>
+              <p className="stat-label">{m.streak === 1 ? "day" : "days"}</p>
             </div>
           </div>
         )}

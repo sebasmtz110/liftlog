@@ -15,9 +15,10 @@ function Icon({ d }) {
 const TABS = [
   { href: "/", label: "Home", cls: "tab-home", d: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z" },
   { href: "/workout", label: "Workout", cls: "tab-workout", d: "M6.5 6.5v11M17.5 6.5v11M3.5 9.5v5M20.5 9.5v5M6.5 12h11" },
+  { href: "/coach", label: "Coach", cls: "tab-coach", d: "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z" },
   { href: "/exercises", label: "Exercises", cls: "tab-exercises", d: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" },
   { href: "/history", label: "History", cls: "tab-history", d: "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3.5 2" },
-  { href: "/stats", label: "Stats", cls: "tab-stats", d: "M4 20V10M10 20V4M16 20v-8M22 20H2" },
+  { href: "/stats", label: "Progress", cls: "tab-stats", d: "M4 20V10M10 20V4M16 20v-8M22 20H2" },
 ];
 
 export default function TabBar() {
