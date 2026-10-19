@@ -65,7 +65,7 @@ export default function Home() {
   const [startingTpl, setStartingTpl] = useState(null);
   const [todayLabel, setTodayLabel] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [avatarSrc, setAvatarSrc] = useState("/assets/avatar.jpg");
+  const [avatarSrc, setAvatarSrc] = useState("/assets/avatar-default.jpg");
 
   useEffect(() => {
     getProfilePhoto().then((p) => { if (p) setAvatarSrc(p); });
