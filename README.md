@@ -2,9 +2,15 @@
 
 A standalone strength-training prototype for Sebas. Light screens for browsing, a dark screen for the set you are in. Vanilla HTML, CSS, and JavaScript. No build step, no account, no remote API.
 
+## Save it
+
+`Sebas-Training.html` is the whole app in one text file, photos included. Download that file and open it in a browser. Skip `training-ui.zip` — editors treat the zip as a binary file and will not open it.
+
+The split source is `index.html`, `styles.css`, and `app.js`, with photos in `assets/`.
+
 ## Run it
 
-Open `index.html` in a browser, or serve the folder:
+Open `Sebas-Training.html` or `index.html` in a browser, or serve the folder:
 
 ```bash
 python3 -m http.server 41791
