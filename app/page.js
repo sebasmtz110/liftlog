@@ -237,7 +237,7 @@ export default function Home() {
       <ConfigBanner />
       {/* Hero — editorial training visual (real app asset) */}
       <div className="hero">
-        <img className="hero-photo" src="/hero-training.jpg" alt="" aria-hidden="true" />
+        <img className="hero-photo" src="/hero-back.jpg" alt="" aria-hidden="true" />
         <div className="hero-avatar" aria-hidden="true">
           <img src="/avatar.jpg" alt="" onError={(e) => {
             e.currentTarget.style.display = "none";

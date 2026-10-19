@@ -75,7 +75,7 @@ export default function Profile() {
 
         {/* Better Than Yesterday card */}
         <div className="by-card">
-          <img src="/hero-training.jpg" alt="" aria-hidden="true" />
+          <img src="/hero-back.jpg" alt="" aria-hidden="true" />
           <div className="by-overlay" />
           <p className="by-text">Better<br />Than<br />Yesterday</p>
         </div>
