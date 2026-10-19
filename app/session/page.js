@@ -463,6 +463,7 @@ export default function Session() {
             <h2>{focus.exercise.name}</h2>
             <p>{draft.reps || "—"} reps · {weightLabel === "BW" ? "BW" : `${draft.weight || "—"} lb`}</p>
           </div>
+          <button className="btn btn-white" type="button" onClick={() => { setShowRest(false); setPickerOpen(true); }} style={{ marginBottom: 8 }}>Switch Exercise</button>
           <button className="btn btn-ghost" type="button" onClick={() => { setRestOn(false); setRestLeft(null); setShowRest(false); }}>Skip Rest</button>
         </section>
       )}
