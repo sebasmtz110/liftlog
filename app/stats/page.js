@@ -418,7 +418,7 @@ export default function Stats() {
       {/* Log / edit body weight */}
       {bwSheet && (
         <div className="sheet-backdrop" onClick={() => setBwSheet(null)}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label="Log body weight" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet-light" role="dialog" aria-modal="true" aria-label="Log body weight" onClick={(e) => e.stopPropagation()}>
             <div className="grabber" />
             <div className="sheet-head">
               <p className="title-2">{bwSheet.id ? "Edit weight" : "Log body weight"}</p>
@@ -450,7 +450,7 @@ export default function Stats() {
       {/* Delete progress photo */}
       {confirmPhotoDel && (
         <div className="sheet-backdrop" onClick={() => setConfirmPhotoDel(null)}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label="Delete photo" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet-light" role="dialog" aria-modal="true" aria-label="Delete photo" onClick={(e) => e.stopPropagation()}>
             <div className="grabber" />
             <p className="title-2">Delete photo?</p>
             <div className="spacer-8" />
