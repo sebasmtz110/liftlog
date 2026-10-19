@@ -5,13 +5,19 @@ import AuthGate from "./components/AuthGate";
 export const metadata = {
   title: "LiftLog",
   description: "Simple workout tracker — log exercises, sets, reps and weight.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "LiftLog",
+  },
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#F5F5F4",
+  themeColor: "#FFFFFF",
 };
 
 export default function RootLayout({ children }) {
