@@ -517,7 +517,7 @@ function muscleSVG(ex) {
     <g class="muscle ${cls("hamstrings")}"><ellipse cx="52" cy="156" rx="11" ry="18"/><ellipse cx="88" cy="156" rx="11" ry="18"/></g>
     <g class="muscle ${cls("calves")}"><ellipse cx="50" cy="192" rx="7" ry="12"/><ellipse cx="90" cy="192" rx="7" ry="12"/></g>`;
   return `<svg viewBox="0 0 140 210" aria-hidden="true">
-    <path fill="#F4F6F4" stroke="#C5CEC8" stroke-width="1.4" d="M70 16c8 0 13 6 13 12 0 5-3 9-7 10 2 2 6 3 10 4 18 5 30 20 30 38 0 10-3 16-8 20l2 22c8 3 13 10 14 18l4 36c1 10-6 16-15 16h-8l-4-30-6 30h-12l-6-36h-2l-6 36H57l-6-30-4 30h-8c-9 0-16-6-15-16l4-36c1-8 6-15 14-18l2-22c-5-4-8-10-8-20 0-18 12-33 30-38 4-1 8-2 10-4-4-1-7-5-7-10 0-6 5-12 13-12z"/>
+    <path fill="#F5F5F4" stroke="#D4D4D4" stroke-width="1.4" d="M70 16c8 0 13 6 13 12 0 5-3 9-7 10 2 2 6 3 10 4 18 5 30 20 30 38 0 10-3 16-8 20l2 22c8 3 13 10 14 18l4 36c1 10-6 16-15 16h-8l-4-30-6 30h-12l-6-36h-2l-6 36H57l-6-30-4 30h-8c-9 0-16-6-15-16l4-36c1-8 6-15 14-18l2-22c-5-4-8-10-8-20 0-18 12-33 30-38 4-1 8-2 10-4-4-1-7-5-7-10 0-6 5-12 13-12z"/>
     ${face === "back" ? back : front}
   </svg>`;
 }
@@ -528,13 +528,15 @@ function lineChart(series) {
   const x = (i) => l + (series.length === 1 ? 0 : (i * (w - l - r)) / (series.length - 1));
   const y = (v) => t + (1 - (v - min) / (max - min)) * (h - t - b);
   const d = series.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+  const base = (h - b).toFixed(1);
+  const area = `${d} L${x(series.length - 1).toFixed(1)},${base} L${x(0).toFixed(1)},${base} Z`;
   const grids = [100, 150, 200].map((g) => {
     const yy = y(g);
-    return `<line x1="${l}" y1="${yy}" x2="${w - r}" y2="${yy}" stroke="rgba(255,255,255,.08)"/><text x="0" y="${yy + 4}" fill="#8E9994" font-size="12">${g}</text>`;
+    return `<line x1="${l}" y1="${yy}" x2="${w - r}" y2="${yy}" stroke="rgba(255,255,255,.08)"/><text x="0" y="${yy + 4}" fill="#9A9A9A" font-size="12">${g}</text>`;
   }).join("");
-  const dots = series.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.v)}" r="4.5" fill="#101614" stroke="#B6F3D6" stroke-width="3"/>`).join("");
-  const labels = series.map((p, i) => `<text x="${x(i)}" y="${h - 6}" text-anchor="middle" fill="#8E9994" font-size="12">${esc(p.label)}</text>`).join("");
-  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Strength trend from ${esc(series[0].label)} to ${esc(series.at(-1).label)}">${grids}<path d="${d}" fill="none" stroke="#B6F3D6" stroke-width="3" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#B6F3D6" stroke-width="3" class="draw"/>${dots}${labels}</svg>`;
+  const dots = series.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.v)}" r="4.5" fill="#0A0A0A" stroke="#F0372D" stroke-width="3"/>`).join("");
+  const labels = series.map((p, i) => `<text x="${x(i)}" y="${h - 6}" text-anchor="middle" fill="#9A9A9A" font-size="12">${esc(p.label)}</text>`).join("");
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Strength trend from ${esc(series[0].label)} to ${esc(series.at(-1).label)}">${grids}<path d="${area}" fill="rgba(240,55,45,0.12)" stroke="none"/><path d="${d}" fill="none" stroke="#F0372D" stroke-width="3" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#F0372D" stroke-width="3" class="draw"/>${dots}${labels}</svg>`;
 }
 
 function filteredExercises() {
@@ -693,18 +695,18 @@ function paintProgress() {
         ${lineChart(series)}
       </div>
       <div class="dark-block"><div class="block-head"><h2>Top Lifts</h2></div>
-        ${LIFTS.map((l) => `<button class="lift-row" type="button" data-go="detail" data-id="${l.id}"><span><strong>${l.name}</strong><small style="display:block;color:#9AA3A0">${weightText(l.weight)}</small></span><span class="delta">+${l.delta}%</span></button>`).join("")}
+        ${LIFTS.map((l) => `<button class="lift-row" type="button" data-go="detail" data-id="${l.id}"><span><strong>${l.name}</strong><small style="display:block;color:#9A9A9A">${weightText(l.weight)}</small></span><span class="delta">+${l.delta}%</span></button>`).join("")}
       </div>
-      <div class="dark-block"><div class="block-head"><h2>Workout Volume</h2><span style="color:#9AA3A0;font-size:13px">This week</span></div>
+      <div class="dark-block"><div class="block-head"><h2>Workout Volume</h2><span style="color:#9A9A9A;font-size:13px">This week</span></div>
         <div class="vol-bars">${[40,70,48,88,100,62,30].map((h) => `<span style="--h:${h}%"></span>`).join("")}</div>
         <div class="vol-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
       </div>`;
   } else if (state.progressTab === "Workouts") {
     body.innerHTML = `<div class="dark-block">${historyItems().slice(0, 6).map((h) =>
-      `<button class="dark-row" type="button" data-go="history-detail" data-id="${esc(h.id)}"><span><strong>${esc(h.name)}</strong><small style="display:block;color:#9AA3A0">${formatDate(h.date)} · ${h.minutes} min</small></span><span class="delta">${volumeText(h.volume || estimateVolume(h))}</span></button>`).join("")}</div>`;
+      `<button class="dark-row" type="button" data-go="history-detail" data-id="${esc(h.id)}"><span><strong>${esc(h.name)}</strong><small style="display:block;color:#9A9A9A">${formatDate(h.date)} · ${h.minutes} min</small></span><span class="delta">${volumeText(h.volume || estimateVolume(h))}</span></button>`).join("")}</div>`;
   } else if (state.progressTab === "Strength") {
     body.innerHTML = LIFTS.map((l) => `<button class="dark-block lift-row" type="button" data-go="detail" data-id="${l.id}" style="width:100%">
-      <span><strong>${l.name}</strong><small style="display:block;color:#9AA3A0">Best set</small><span class="mini">${l.bars.map((b) => `<i style="--h:${b}%"></i>`).join("")}</span></span>
+      <span><strong>${l.name}</strong><small style="display:block;color:#9A9A9A">Best set</small><span class="mini">${l.bars.map((b) => `<i style="--h:${b}%"></i>`).join("")}</span></span>
       <span><strong>${weightText(l.weight)}</strong><span class="delta">+${l.delta}%</span></span></button>`).join("");
   } else {
     const weight = state.unit === "kg" ? "83.5 kg" : "184 lb";
