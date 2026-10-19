@@ -209,7 +209,7 @@ export default function Stats() {
       <ConfigBanner />
       {/* Small hero */}
       <div style={{ position: "relative", height: 160, overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #1a1a1a, #2d2d2d)" }} />
+        <img src="/hero-training.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,.7), transparent 60%)" }} />
         <div style={{ position: "absolute", left: 20, bottom: 14, color: "#fff" }}>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-.02em" }}>Progress</h1>
