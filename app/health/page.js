@@ -9,74 +9,74 @@ import Icon from "../components/Icon";
 
 const SEBAS_EMAIL = "sebasmtz110@gmail.com";
 
-// Apple Watch goals
-const GOALS = { move: 500, exercise: 30, stand: 12 };
-
-function Ring({ size, stroke, progress, color, trackColor = "#222" }) {
+function ScoreRing({ score, label, color }) {
+  const size = 120;
+  const stroke = 12;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const p = Math.max(0, Math.min(1, progress));
+  const p = score == null ? 0 : Math.max(0, Math.min(1, score / 100));
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={trackColor} strokeWidth={stroke} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={color} strokeWidth={stroke} strokeLinecap="round"
-        strokeDasharray={c} strokeDashoffset={c * (1 - p)}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </svg>
-  );
-}
-
-function ActivityRings({ move, exercise, stand }) {
-  const size = 180;
-  return (
-    <div style={{ display: "flex", justifyContent: "center", margin: "8px 0 20px" }}>
-      <div style={{ position: "relative", width: size, height: size }}>
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Ring size={size} stroke={16} progress={stand / GOALS.stand} color="#3aa7ff" />
+    <div style={{ textAlign: "center", cursor: "pointer" }}>
+      <div style={{ position: "relative", width: size, height: size, margin: "0 auto" }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#222" strokeWidth={stroke} />
+          <circle
+            cx={size/2} cy={size/2} r={r} fill="none"
+            stroke={color} strokeWidth={stroke} strokeLinecap="round"
+            strokeDasharray={c} strokeDashoffset={c * (1 - p)}
+            transform={`rotate(-90 ${size/2} ${size/2})`}
+          />
+        </svg>
+        <div style={{
+          position: "absolute", inset: 0, display: "flex",
+          alignItems: "center", justifyContent: "center",
+          fontSize: 24, fontWeight: 800, color: "#fff",
+        }}>
+          {score ?? "–"}
         </div>
-        <div style={{ position: "absolute", inset: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Ring size={size - 40} stroke={16} progress={exercise / GOALS.exercise} color="#a4f233" />
-        </div>
-        <div style={{ position: "absolute", inset: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Ring size={size - 80} stroke={16} progress={move / GOALS.move} color="#fa114f" />
-        </div>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginTop: 8 }}>{label}</div>
+      <div style={{ fontSize: 12, color: color }}>
+        {score == null ? "Needs data" : score >= 80 ? "Great" : score >= 60 ? "Good" : score >= 40 ? "Fair" : "Low"}
       </div>
     </div>
   );
 }
 
-function RingLegend({ move, exercise, stand }) {
-  const items = [
-    { label: "Move", value: `${Math.round(move)}/${GOALS.move} kcal`, color: "#fa114f" },
-    { label: "Exercise", value: `${Math.round(exercise)}/${GOALS.exercise} min`, color: "#a4f233" },
-    { label: "Stand", value: `${stand?.toFixed(1) ?? "–"}/${GOALS.stand} hr`, color: "#3aa7ff" },
-  ];
-  return (
-    <div style={{ display: "flex", justifyContent: "center", gap: 20, marginBottom: 20 }}>
-      {items.map((it) => (
-        <div key={it.label} style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: it.color }}>{it.label}</div>
-          <div style={{ fontSize: 12, color: "#888" }}>{it.value}</div>
-        </div>
-      ))}
-    </div>
-  );
+// Simplified sleep score: 50% duration (7.5h goal), 30% consistency (placeholder), 20% interruptions (placeholder)
+// Uses real sleep hours; consistency/interruptions need more history
+function sleepScore(hours) {
+  if (hours == null) return null;
+  const dur = Math.sqrt(Math.min(1, hours / 7.5)); // diminishing returns
+  return Math.round(dur * 100);
 }
 
-function StatCard({ icon, value, label, accent }) {
+// Simplified recovery: based on HRV and resting HR vs their 7-day averages
+function recoveryScore(today, week) {
+  const hrvs = week.map(d => d.hrv).filter(v => v != null);
+  const rhrs = week.map(d => d.resting_hr).filter(v => v != null);
+  if (!hrvs.length || !rhrs.length || today.hrv == null || today.resting_hr == null) return null;
+  const avgHrv = hrvs.reduce((a,b) => a+b, 0) / hrvs.length;
+  const avgRhr = rhrs.reduce((a,b) => a+b, 0) / rhrs.length;
+  const hrvScore = Math.max(0, Math.min(1, 0.75 + ((today.hrv / avgHrv) - 1) * 2.5));
+  const rhrDiff = today.resting_hr - avgRhr;
+  const rhrScore = Math.max(0, Math.min(1, 0.75 - (rhrDiff > 0 ? rhrDiff * 0.1 : rhrDiff * 0.05)));
+  return Math.round((hrvScore * 0.6 + rhrScore * 0.4) * 100);
+}
+
+function Tile({ icon, value, unit, label, color }) {
   return (
     <div style={{
-      background: accent ? "#d92d20" : "#111",
-      borderRadius: 16,
-      padding: "16px 8px",
+      background: "#111", borderRadius: 16, padding: "16px 12px",
       textAlign: "center",
     }}>
-      {icon && <div style={{ marginBottom: 4, color: accent ? "#fff" : "#d92d20" }}><Icon name={icon} /></div>}
-      <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{value}</div>
-      <div style={{ fontSize: 11, color: accent ? "#ffd9d6" : "#888", marginTop: 2 }}>{label}</div>
+      <div style={{ color, marginBottom: 6, display: "flex", justifyContent: "center" }}>
+        <Icon name={icon} />
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>
+        {value}<span style={{ fontSize: 13, fontWeight: 400, color: "#888" }}> {unit}</span>
+      </div>
+      <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>{label}</div>
     </div>
   );
 }
@@ -101,7 +101,7 @@ export default function Health() {
         .from("health_data")
         .select("*")
         .order("date", { ascending: false })
-        .limit(8);
+        .limit(14);
       if (health && health.length > 0) setData(health);
       setLoading(false);
     })();
@@ -110,61 +110,62 @@ export default function Health() {
   if (user && user.email !== SEBAS_EMAIL) return null;
 
   const today = data?.[0] ?? {};
-  const week = (data ?? []).slice(1);
-  const move = today.active_kcal ?? 0;
-  const exercise = today.exercise_min ?? 0;
-  const stand = today.stand_hrs ?? 0;
+  const week = data ?? [];
+  const sleep = sleepScore(today.sleep_hours);
+  const recovery = recoveryScore(today, week);
 
   return (
-    <section className="screen" data-screen="health">
+    <section className="screen" data-screen="health" style={{ background: "#000", minHeight: "100vh" }}>
       <ConfigBanner />
-      <header className="page-head">
-        <h1>Health</h1>
-        <p className="note">Apple Watch stats, synced automatically</p>
-      </header>
-      {loading ? (
-        <p className="loading">Loading…</p>
-      ) : !data ? (
-        <div className="empty">
-          <Icon name="heart" />
-          <p>No health data yet</p>
-          <p className="note">Your Apple Watch stats will appear here.</p>
-        </div>
-      ) : (
-        <div className="pad">
-          <ActivityRings move={move} exercise={exercise} stand={stand} />
-          <RingLegend move={move} exercise={exercise} stand={stand} />
+      <div className="pad" style={{ paddingTop: 20 }}>
+        <h1 style={{ color: "#fff", fontSize: 32, fontWeight: 800, margin: "0 0 4px" }}>Health</h1>
+        <p style={{ color: "#888", fontSize: 14, margin: "0 0 20px" }}>Apple Watch data</p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-            <StatCard icon="heart" value={today.resting_hr ?? "–"} label="Resting HR" />
-            <StatCard value={(today.steps ?? 0).toLocaleString()} label="Steps" />
-            <StatCard value={today.sleep_hours ?? "–"} label="Sleep (hrs)" />
-            <StatCard value={today.hrv ?? "–"} label="HRV (ms)" />
-            <StatCard value={today.workouts ?? 0} label="Workouts" accent />
-            <StatCard value={today.resting_hr ? `${Math.round((today.resting_hr / 60) * 10) / 10}k` : "–"} label="Est. beats today" />
+        {loading ? (
+          <p className="loading" style={{ color: "#888" }}>Loading…</p>
+        ) : !data ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#888" }}>
+            <Icon name="heart" />
+            <p style={{ color: "#fff", fontWeight: 600 }}>No Watch data yet</p>
+            <p style={{ fontSize: 14 }}>Your Watch stats will appear here automatically.</p>
           </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", justifyContent: "center", gap: 32, marginBottom: 24 }}>
+              <ScoreRing score={sleep} label="Sleep score" color="#a78bfa" />
+              <ScoreRing score={recovery} label="Recovery score" color="#d92d20" />
+            </div>
 
-          {week.length > 0 && (
-            <>
-              <h2 style={{ fontSize: 18, fontWeight: 800, margin: "4px 0 12px" }}>This Week</h2>
-              {week.map((d) => (
-                <div key={d.date} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "12px 0", borderTop: "1px solid #f0f0f0",
-                }}>
-                  <strong style={{ fontSize: 15 }}>
-                    {new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-                  </strong>
-                  <span style={{ fontSize: 14, color: "#555" }}>
-                    {(d.steps ?? 0).toLocaleString()} steps · {d.active_kcal ?? "–"} kcal
-                    {d.sleep_hours ? ` · ${d.sleep_hours}h sleep` : ""}
-                  </span>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+              <Tile icon="heart" value={today.resting_hr ?? "–"} unit="bpm" label="Resting HR today" color="#d92d20" />
+              <Tile icon="workouts" value={(today.steps ?? 0).toLocaleString()} unit="" label="Steps today" color="#888" />
+              <Tile icon="clock" value={today.sleep_hours ?? "–"} unit="h" label="Sleep last night" color="#a78bfa" />
+              <Tile icon="progress" value={today.active_kcal ?? "–"} unit="kcal" label="Active energy" color="#d92d20" />
+            </div>
+
+            {week.length > 1 && (
+              <div style={{ background: "#111", borderRadius: 16, padding: "16px" }}>
+                <h3 style={{ color: "#fff", fontSize: 15, fontWeight: 700, margin: "0 0 12px" }}>Recent days</h3>
+                {week.slice(1, 8).map((d) => (
+                  <div key={d.date} style={{
+                    display: "flex", justifyContent: "space-between",
+                    padding: "8px 0", borderTop: "1px solid #222",
+                    fontSize: 14,
+                  }}>
+                    <span style={{ color: "#fff" }}>
+                      {new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                    </span>
+                    <span style={{ color: "#888" }}>
+                      {(d.steps ?? 0).toLocaleString()} steps
+                      {d.sleep_hours ? ` · ${d.sleep_hours}h sleep` : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </section>
   );
 }
