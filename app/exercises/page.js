@@ -15,7 +15,7 @@ function muscleMarkup(ex) {
   const hot = ex.hot?.[0] || "";
   const label = hot ? hot.charAt(0).toUpperCase() + hot.slice(1) : "";
   return `<div style="position:relative;width:92px;height:120px;overflow:hidden;border-radius:12px;">
-    <img src="/assets/muscle-${face}.jpg" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;" />
+    <img src="/assets/muscle-${face}.jpg?v=1" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;" />
     ${label ? `<div style="position:absolute;bottom:4px;left:4px;right:4px;background:rgba(240,55,45,.92);color:#fff;font-size:10px;font-weight:700;text-align:center;padding:3px 6px;border-radius:8px;">${label}</div>` : ""}
   </div>`;
 }
