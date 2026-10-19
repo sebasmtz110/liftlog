@@ -24,7 +24,7 @@ export default function Profile() {
   const [photo, setPhoto] = useState("/assets/avatar-default.jpg");
 
   useEffect(() => {
-    getProfilePhoto().then((p) => { if (p) setPhoto(p); });
+    getProfilePhoto(user?.id).then((p) => { if (p) setPhoto(p); });
   }, [user]);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function Profile() {
     e.target.value = "";
     if (!file) return;
     try {
-      const url = await setProfilePhoto(file);
+      const url = await setProfilePhoto(file, user?.id);
       setPhoto(url);
     } catch { /* stays on device only */ }
   }
