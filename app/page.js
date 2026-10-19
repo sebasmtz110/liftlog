@@ -68,7 +68,7 @@ export default function Home() {
   const [avatarSrc, setAvatarSrc] = useState("/assets/avatar-default.jpg");
 
   useEffect(() => {
-    getProfilePhoto().then((p) => { if (p) setAvatarSrc(p); });
+    getProfilePhoto(user?.id).then((p) => { if (p) setAvatarSrc(p); });
   }, []);
   const [greeting, setGreeting] = useState("Good morning");
   const [goal, setGoal] = useState(4);
