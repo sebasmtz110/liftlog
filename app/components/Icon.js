@@ -21,6 +21,7 @@ const PATHS = {
   backspace: <><path d="M8.2 6.5h11.2a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H8.2L3.5 12z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="m11 10 4 4M15 10l-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></>,
   grid: <><rect x="4" y="4" width="6.5" height="6.5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.7" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.7" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.7" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.7" /></>,
   layers: <path d="m12 4 8 4.2L12 12.4 4 8.2zM4 12.2l8 4.2 8-4.2M4 15.6 12 19.8l8-4.2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />,
+  heart: <path d="M12 20.5C7 16.5 3.5 13.3 3.5 9.6 3.5 7 5.5 5 8 5c1.6 0 3.1.8 4 2.1C12.9 5.8 14.4 5 16 5c2.5 0 4.5 2 4.5 4.6 0 3.7-3.5 6.9-8.5 10.9z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />,
 };
 
 export default function Icon({ name, className = "icon" }) {

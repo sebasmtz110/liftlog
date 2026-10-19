@@ -8,6 +8,8 @@ import { useAuth } from "./AuthContext";
 import { supabase, isConfigured } from "../../lib/supabase";
 import { getProfilePhoto } from "../../lib/profilePhoto";
 
+const SEBAS_EMAIL = "sebasmtz110@gmail.com";
+
 const TABS = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/workout", label: "Workouts", icon: "workouts" },
@@ -16,11 +18,20 @@ const TABS = [
   { href: "/history", label: "History", icon: "clock" },
 ];
 
+const HEALTH_TAB = { href: "/health", label: "Health", icon: "heart" };
+
+function tabsFor(user) {
+  const isSebas = user?.email === SEBAS_EMAIL;
+  return isSebas ? [...TABS.slice(0, 4), HEALTH_TAB, TABS[4]] : TABS;
+}
+
 export default function TabBar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const tabs = tabsFor(user);
   return (
     <nav className="tabbar" aria-label="Primary">
-      {TABS.map((t) => {
+      {tabs.map((t) => {
         const active = t.href === "/" ? pathname === "/" : pathname.startsWith(t.href);
         return (
           <Link key={t.href} href={t.href} className={active ? "is-active" : ""}>
@@ -38,6 +49,7 @@ export function Sidebar() {
   const { user } = useAuth();
   const [name, setName] = useState("LiftLog");
   const [photo, setPhoto] = useState("/assets/avatar.jpg");
+  const tabs = tabsFor(user);
 
   useEffect(() => {
     getProfilePhoto().then((p) => { if (p) setPhoto(p); });
@@ -59,7 +71,7 @@ export function Sidebar() {
         </span>
       </Link>
       <nav className="side-nav" aria-label="Primary">
-        {TABS.map((t) => {
+        {tabs.map((t) => {
           const active = t.href === "/" ? pathname === "/" : pathname.startsWith(t.href);
           return (
             <Link key={t.href} href={t.href} className={active ? "is-active" : ""}>
