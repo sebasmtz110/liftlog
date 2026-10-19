@@ -85,6 +85,11 @@ export default function Health() {
   const sleep = sleepScore(today.sleep_hours);
   const recovery = recoveryScore(today, week);
 
+  // Last sync time - from the most recent data point
+  const lastSync = data?.[0]?.date
+    ? new Date(data[0].date + "T12:00:00").toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : null;
+
   // SebasFit tile helper - exact structure
   const tiles = [
     { icon: "heart", val: today.resting_hr ?? "–", unit: "bpm", label: "Resting HR today", color: "#f87171" },
@@ -98,7 +103,15 @@ export default function Health() {
       <ConfigBanner />
       <div style={{ padding: "20px 16px 100px" }}>
         <h1 style={{ fontSize: 32, fontWeight: 800, margin: "0 0 2px", color: "#eef1f5" }}>Health</h1>
-        <p style={{ color: "#9aa3ae", fontSize: 15, margin: "0 0 12px" }}>Apple Watch data</p>
+        <p style={{ color: "#9aa3ae", fontSize: 15, margin: "0 0 4px" }}>
+          {lastSync ? `Updated ${lastSync}` : "Apple Watch data"}
+        </p>
+
+        {/* Sync line - exact SebasFit .syncline */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 14, color: "#9aa3ae", margin: "4px 2px 8px" }}>
+          <span style={{ color: "#4ade80", display: "flex" }}><Icon name="progress" /></span>
+          <span style={{ flex: 1 }}>Auto-syncs from Apple Health every 3 hours</span>
+        </div>
 
         {loading ? (
           <p style={{ color: "#9aa3ae" }}>Loading…</p>
