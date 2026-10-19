@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, isConfigured } from "../../lib/supabase";
 import ConfigBanner from "../components/ConfigBanner";
+import { getProfilePhoto, setProfilePhoto } from "../../lib/profilePhoto";
 
 const ROWS = [
   { icon: "▦", label: "My Programs", href: "/workout" },
@@ -18,6 +19,21 @@ export default function Profile() {
   const router = useRouter();
   const [name, setName] = useState("Sebas");
   const [email, setEmail] = useState("");
+  const [photo, setPhoto] = useState("/avatar.jpg");
+
+  useEffect(() => {
+    getProfilePhoto().then((p) => { if (p) setPhoto(p); });
+  }, []);
+
+  const onPhotoPick = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await setProfilePhoto(file);
+      setPhoto(dataUrl);
+    } catch { /* noop */ }
+    e.target.value = "";
+  };
 
   useEffect(() => {
     if (!isConfigured) return;
@@ -46,12 +62,21 @@ export default function Profile() {
       <ConfigBanner />
       <header className="screen-head">
         <div className="profile-head">
-          <div className="profile-avatar" aria-hidden="true">
-            <img src="/avatar.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+          <div className="profile-avatar" aria-hidden="true" style={{ position: "relative" }}>
+            <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }} />
             <span style={{ position: "absolute" }}>{name.charAt(0).toUpperCase()}</span>
+            <label style={{
+              position: "absolute", bottom: -2, right: -2, width: 32, height: 32,
+              borderRadius: "50%", background: "var(--green)", color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 18, cursor: "pointer", border: "2px solid #fff",
+            }} aria-label="Upload profile photo">
+              +
+              <input type="file" accept="image/*" onChange={onPhotoPick} style={{ display: "none" }} />
+            </label>
           </div>
           <div>
             <h1 className="title-2" style={{ fontSize: 24, lineHeight: "32px" }}>{name}</h1>

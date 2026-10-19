@@ -7,6 +7,7 @@ import { formatDateTime } from "../lib/format";
 import { loadSplit } from "../lib/presets";
 import ConfigBanner from "./components/ConfigBanner";
 import { useAuth } from "./components/AuthContext";
+import { getProfilePhoto } from "../lib/profilePhoto";
 
 const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const todayIdx = () => (new Date().getDay() + 6) % 7;
@@ -92,6 +93,11 @@ export default function Home() {
   const [startingTpl, setStartingTpl] = useState(null);
   const [todayLabel, setTodayLabel] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [avatarSrc, setAvatarSrc] = useState("/avatar.jpg");
+
+  useEffect(() => {
+    getProfilePhoto().then((p) => { if (p) setAvatarSrc(p); });
+  }, []);
   const [greeting, setGreeting] = useState("Good morning");
   const [goal, setGoal] = useState(4);
   const [split, setSplit] = useState(null);
@@ -239,7 +245,7 @@ export default function Home() {
       <div className="hero">
         <img className="hero-photo" src="/hero-back.jpg" alt="" aria-hidden="true" />
         <div className="hero-avatar" aria-hidden="true">
-          <img src="/avatar.jpg" alt="" onError={(e) => {
+          <img src={avatarSrc} alt="" onError={(e) => {
             e.currentTarget.style.display = "none";
             e.currentTarget.parentElement.textContent = (displayName || "S").charAt(0).toUpperCase();
           }} />
