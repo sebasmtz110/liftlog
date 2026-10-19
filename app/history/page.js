@@ -92,27 +92,20 @@ function HistoryInner() {
             <Icon name="back" />
           </button>
           <h1>Workout</h1>
-          <span style={{ display: "flex", gap: 8 }}>
-            {!editing ? (
-              <>
-                <button type="button" aria-label="Edit" onClick={startEdit} style={{ fontSize: 14, fontWeight: 600 }}>
-                  Edit
-                </button>
-                <button type="button" aria-label="Delete" onClick={deleteWorkout} style={{ fontSize: 14, fontWeight: 600, color: "#d33" }}>
-                  Delete
-                </button>
-              </>
-            ) : (
-              <>
-                <button type="button" onClick={() => setEditing(false)} style={{ fontSize: 14, fontWeight: 600 }} disabled={saving}>
-                  Cancel
-                </button>
-                <button type="button" onClick={saveEdits} style={{ fontSize: 14, fontWeight: 700 }} disabled={saving}>
-                  {saving ? "Saving…" : "Save"}
-                </button>
-              </>
-            )}
-          </span>
+          {!editing ? (
+            <button type="button" aria-label="Edit" onClick={startEdit} style={{ fontSize: 14, fontWeight: 600 }}>
+              Edit
+            </button>
+          ) : (
+            <span style={{ display: "flex", gap: 12 }}>
+              <button type="button" onClick={() => setEditing(false)} style={{ fontSize: 14, fontWeight: 600 }} disabled={saving}>
+                Cancel
+              </button>
+              <button type="button" onClick={saveEdits} style={{ fontSize: 14, fontWeight: 700 }} disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </span>
+          )}
         </header>
         <div className="pad">
           <p className="note">
@@ -152,6 +145,25 @@ function HistoryInner() {
             </div>
           ))}
           {groups.size === 0 && <p className="empty">No sets were logged.</p>}
+          {!editing && (
+            <button
+              type="button"
+              onClick={deleteWorkout}
+              style={{
+                marginTop: 24,
+                width: "100%",
+                padding: "14px",
+                borderRadius: 12,
+                border: "1px solid #d33",
+                background: "transparent",
+                color: "#d33",
+                fontSize: 15,
+                fontWeight: 600,
+              }}
+            >
+              Delete Workout
+            </button>
+          )}
         </div>
       </section>
     );
