@@ -207,109 +207,104 @@ export default function Stats() {
   return (
     <section className="screen screen-progress" data-screen="progress">
       <ConfigBanner />
+
+  const monthLabel = now ? now.toLocaleDateString(undefined, { month: "long", year: "numeric" }).toUpperCase() : "";
+
+  return (
+    <section className="screen" data-screen="progress" style={{ background: "#F4F5F2", minHeight: "100dvh" }}>
+      <ConfigBanner />
       {/* Small hero */}
-      <div style={{ position: "relative", height: 160, overflow: "hidden" }}>
-        <img src="/hero-training.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,.7), transparent 60%)" }} />
-        <div style={{ position: "absolute", left: 20, bottom: 14, color: "#fff" }}>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-.02em" }}>Progress</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 13, opacity: .8 }}>
-            {range === "month" ? "This month" : "This week"} · {model?.inRange?.length ?? 0} workouts
-          </p>
+      <div style={{ position: "relative", height: 150, overflow: "hidden" }}>
+        <img src="/assets/gym-dark.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(16,25,22,.7), transparent 55%)" }} />
+        <div style={{ position: "absolute", left: 20, bottom: 12, color: "#fff" }}>
+          <div style={{ fontSize: 11, letterSpacing: ".12em", color: "rgba(255,255,255,.75)", fontWeight: 600 }}>{monthLabel}</div>
+          <h1 style={{ margin: "2px 0 0", fontSize: 30, fontWeight: 800, letterSpacing: "-.02em" }}>Progress</h1>
         </div>
       </div>
 
-      <div className="screen-body">
+      <div style={{ padding: "0 0 24px" }}>
         {loading || !model ? (
-          <p className="loading">Loading…</p>
+          <p className="loading" style={{ padding: 20 }}>Loading…</p>
         ) : (
           <>
-            <div className="chips dark-chips" role="tablist" style={{ margin: "12px 16px 0" }}>
+            {/* Week / Month / Year */}
+            <div style={{ display: "flex", background: "#E8ECE8", borderRadius: 12, margin: "14px 16px 0", padding: 3 }}>
               {RANGES.filter((r) => r.id !== "year").map((r) => (
-                <button key={r.id} type="button" className={range === r.id ? "is-on" : ""} onClick={() => setRange(r.id)}>
-                  {r.id === "week" ? "Week" : "Month"}
+                <button key={r.id} type="button" onClick={() => setRange(r.id)}
+                  style={{ flex: 1, border: 0, background: range === r.id ? "#fff" : "transparent",
+                    color: range === r.id ? "#101916" : "#69746F", fontSize: 14, fontWeight: 600,
+                    padding: 8, borderRadius: 9, cursor: "pointer",
+                    boxShadow: range === r.id ? "0 1px 3px rgba(0,0,0,.1)" : "none" }}>
+                  {r.label}
                 </button>
               ))}
             </div>
 
-            {/* Goal ring */}
-            <div className="card" style={{ margin: "12px 16px 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ width: 76, height: 76, position: "relative", flex: "none" }}>
-                  <svg width="76" height="76" viewBox="0 0 76 76" style={{ transform: "rotate(-90deg)", display: "block" }}>
-                    <circle cx="38" cy="38" r="32" fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="7" />
-                    <circle cx="38" cy="38" r="32" fill="none" stroke="#F0372D" strokeWidth="7" strokeLinecap="round"
-                      strokeDasharray={circ.toFixed(0)} strokeDashoffset={off.toFixed(0)} />
-                  </svg>
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16 }}>
-                    {goalPct}%
+            {/* Stat tiles */}
+            <div style={{ background: "#fff", border: "1px solid #DFE4DF", borderRadius: 16, margin: "12px 16px 0", padding: 16 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ flex: 1, background: "linear-gradient(135deg,#0F706E,#0E6A52)", borderRadius: 12, padding: 12, color: "#fff" }}>
+                  <div style={{ fontSize: 10, letterSpacing: ".08em", opacity: .8, fontWeight: 700 }}>VOLUME</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>
+                    {model.volume >= 1000 ? `${(model.volume / 1000).toFixed(1).replace(/\.0$/, "")}k` : Math.round(model.volume)}
                   </div>
+                  <div style={{ fontSize: 11, opacity: .85, marginTop: 2 }}>lb lifted</div>
                 </div>
-                <div>
-                  <p className="headline" style={{ margin: 0 }}>Weekly goal</p>
-                  <p className="footnote" style={{ margin: "4px 0 0" }}>{weekWorkouts} of 5 workouts</p>
+                <div style={{ flex: 1, background: "linear-gradient(135deg,#1a1a1a,#2d2d2d)", borderRadius: 12, padding: 12, color: "#fff" }}>
+                  <div style={{ fontSize: 10, letterSpacing: ".08em", opacity: .8, fontWeight: 700 }}>WORKOUTS</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{model.inRange.length}</div>
+                  <div style={{ fontSize: 11, opacity: .85, marginTop: 2 }}>this {range}</div>
                 </div>
-              </div>
-            </div>
-
-            {/* Stats row */}
-            <div style={{ display: "flex", gap: 12, margin: "12px 16px 0" }}>
-              <div className="card" style={{ flex: 1, margin: 0, textAlign: "center", padding: "14px 8px" }}>
-                <p className="stat-value" style={{ fontSize: 22 }}>{model.inRange.length}</p>
-                <p className="stat-label">Workouts</p>
-              </div>
-              <div className="card" style={{ flex: 1, margin: 0, textAlign: "center", padding: "14px 8px" }}>
-                <p className="stat-value" style={{ fontSize: 22 }}>
-                  {model.volume >= 1000 ? `${(model.volume / 1000).toFixed(1).replace(/\.0$/, "")}k` : Math.round(model.volume)}
-                </p>
-                <p className="stat-label">Volume lb</p>
-              </div>
-              <div className="card" style={{ flex: 1, margin: 0, textAlign: "center", padding: "14px 8px" }}>
-                <p className="stat-value" style={{ fontSize: 22 }}>{model.prs.length}</p>
-                <p className="stat-label">PRs</p>
+                <div style={{ flex: 1, background: "linear-gradient(135deg,#F0372D,#C92A20)", borderRadius: 12, padding: 12, color: "#fff" }}>
+                  <div style={{ fontSize: 10, letterSpacing: ".08em", opacity: .8, fontWeight: 700 }}>NEW PRs</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{model.prs.length}</div>
+                  <div style={{ fontSize: 11, opacity: .85, marginTop: 2 }}>this {range}</div>
+                </div>
               </div>
             </div>
 
             {/* Volume chart */}
-            <div className="card" style={{ margin: "12px 16px 0" }}>
-              <div className="chart-head"><h2>Volume</h2></div>
+            <div style={{ background: "#fff", border: "1px solid #DFE4DF", borderRadius: 16, margin: "12px 16px 0", padding: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Volume · this {range}</h2>
+                <span style={{ fontSize: 12, color: "#69746F" }}>lb</span>
+              </div>
               <VolumeChart series={volumeSeries} />
             </div>
 
-            {/* PRs */}
-            {model.prs.length > 0 && (
-              <div className="card" style={{ margin: "12px 16px 0" }}>
-                <p className="headline" style={{ marginBottom: 8 }}>🏆 Personal records</p>
-                {model.prs.slice(0, 3).map(([name, b], i) => (
-                  <p key={i} className="footnote" style={{ margin: "6px 0" }}>
-                    <strong>{name}</strong> · {b.weight} lb
+            {/* Top set trend */}
+            {model.topEx && model.trendSets.length >= 2 && (
+              <div style={{ background: "#fff", border: "1px solid #DFE4DF", borderRadius: 16, margin: "12px 16px 0", padding: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+                  <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{model.topEx} · top set</h2>
+                  <span style={{ fontSize: 12, color: "#69746F" }}>lb</span>
+                </div>
+                {model.trendSets.map((s, i) => (
+                  <p key={i} className="footnote" style={{ margin: "6px 0", color: "#69746F", fontSize: 13 }}>
+                    {new Date(s.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    {" — "}{s.weight} lb × {s.reps}
                   </p>
                 ))}
               </div>
             )}
 
-            {/* Recent workouts feed */}
-            <h2 className="section-title" style={{ margin: "20px 16px 0" }}>Recent</h2>
-            {model.inRange.slice(0, 4).map((w) => {
-              const wvol = (w.sets ?? []).reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0);
-              return (
-                <div key={w.id} className="card" style={{ margin: "12px 16px 0" }}>
-                  <p className="footnote">{new Date(w.started_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</p>
-                  <p className="headline" style={{ margin: "4px 0" }}>{w.notes?.replace("Imported from SebasFit: ", "") || "Workout"}</p>
-                  <div style={{ display: "flex", gap: 20, marginTop: 8 }}>
-                    <div><p className="stat-value" style={{ fontSize: 17 }}>{wvol >= 1000 ? `${(wvol/1000).toFixed(1)}k` : Math.round(wvol)}</p><p className="stat-label">Volume</p></div>
-                    <div><p className="stat-value" style={{ fontSize: 17 }}>{(w.sets ?? []).length}</p><p className="stat-label">Sets</p></div>
-                  </div>
-                </div>
-              );
-            })}
-
-            <div style={{ height: 24 }} />
+            {/* PRs */}
+            {model.prs.length > 0 && (
+              <div style={{ background: "#fff", border: "1px solid #DFE4DF", borderRadius: 16, margin: "12px 16px 0", padding: 16 }}>
+                <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700 }}>🏆 Personal records</h2>
+                {model.prs.slice(0, 5).map(([name, b], i) => (
+                  <p key={i} style={{ margin: "6px 0", fontSize: 14 }}>
+                    <strong>{name}</strong> <span style={{ color: "#69746F" }}>· {b.weight} lb</span>
+                  </p>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* Log / edit body weight - kept from original */}
+      {/* Body weight sheet - kept */}
       {bwSheet && (
         <div className="sheet-backdrop" onClick={() => setBwSheet(null)}>
           <div className="sheet-light" role="dialog" aria-modal="true" aria-label="Log body weight" onClick={(e) => e.stopPropagation()}>
@@ -326,25 +321,6 @@ export default function Stats() {
             <button className="btn btn-filled" style={{ width: "100%" }} disabled={bwSaving} onClick={saveWeight}>
               {bwSaving ? "Saving…" : "Save"}
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Delete progress photo - kept from original */}
-      {confirmPhotoDel && (
-        <div className="sheet-backdrop" onClick={() => setConfirmPhotoDel(null)}>
-          <div className="sheet-light" role="dialog" aria-modal="true" aria-label="Delete photo" onClick={(e) => e.stopPropagation()}>
-            <div className="grabber" />
-            <p className="title-2">Delete photo?</p>
-            <div className="spacer-8" />
-            <p className="footnote">This photo will be removed from this device.</p>
-            <div className="spacer-16" />
-            <button className="btn btn-danger" style={{ width: "100%" }}
-              onClick={async () => { await deletePhoto(confirmPhotoDel); setConfirmPhotoDel(null); setPhotos(await listPhotos()); }}>
-              Delete
-            </button>
-            <div className="spacer-8" />
-            <button className="btn btn-gray" style={{ width: "100%" }} onClick={() => setConfirmPhotoDel(null)}>Cancel</button>
           </div>
         </div>
       )}
