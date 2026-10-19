@@ -34,6 +34,7 @@ export default function Session() {
   const [drafts, setDrafts] = useState({});
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [focusId, setFocusId] = useState(null);
   const [metric, setMetric] = useState("weight");
   const [restLeft, setRestLeft] = useState(null);
@@ -243,7 +244,12 @@ export default function Session() {
 
   async function discardWorkout() {
     if (!workoutId) return;
-    if (!window.confirm("Discard this workout and all its sets?")) return;
+    if (!confirmDiscard) {
+      setConfirmDiscard(true);
+      setTimeout(() => setConfirmDiscard(false), 4000);
+      return;
+    }
+    setConfirmDiscard(false);
     await supabase.from("sets").delete().eq("workout_id", workoutId);
     await supabase.from("workouts").delete().eq("id", workoutId);
     localStorage.removeItem(ACTIVE_WORKOUT_KEY);
@@ -375,7 +381,15 @@ export default function Session() {
       )}
       <div className="workout-panel">
         <header className="wk-top">
-          <button className="icon-btn light" type="button" aria-label="Close workout" onClick={discardWorkout}><Icon name="close" /></button>
+          <button
+            className="icon-btn light"
+            type="button"
+            aria-label="Discard workout"
+            onClick={discardWorkout}
+            style={confirmDiscard ? { background: "#d92d20", color: "#fff", width: "auto", padding: "0 14px", borderRadius: 20, fontSize: 13, fontWeight: 700 } : {}}
+          >
+            {confirmDiscard ? "Tap again to discard" : <Icon name="close" />}
+          </button>
           <button className="icon-btn light" type="button" onClick={finishWorkout} disabled={finishing} aria-label="Finish workout">
             <Icon name="check" />
           </button>
