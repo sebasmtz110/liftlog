@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#F6F7F5" />
+  <title>Sebas · Training</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-tone="light">
+  <a class="skip" href="#stage">Skip to content</a>
+  <div class="app">
+    <aside class="sidebar">
+      <button class="brand" data-go="profile" type="button">
+        <img src="assets/avatar.jpg" alt="" />
+        <span>
+          <strong>Sebas Martinez</strong>
+          <em>Build. Improve. Repeat.</em>
+        </span>
+      </button>
+      <nav class="side-nav" aria-label="Primary">
+        <button type="button" data-go="home" data-tab="home"><svg class="icon"><use href="#i-home"/></svg>Home</button>
+        <button type="button" data-go="history" data-tab="workouts"><svg class="icon"><use href="#i-workouts"/></svg>Workouts</button>
+        <button type="button" data-go="progress" data-tab="progress"><svg class="icon"><use href="#i-progress"/></svg>Progress</button>
+        <button type="button" data-go="library" data-tab="library"><svg class="icon"><use href="#i-library"/></svg>Library</button>
+        <button type="button" data-go="profile" data-tab="more"><svg class="icon"><use href="#i-person"/></svg>Profile</button>
+      </nav>
+      <p class="side-quote">Discipline builds freedom.</p>
+    </aside>
+
+    <div class="stage" id="stage">
+      <section class="screen" data-screen="home">
+        <div class="hero">
+          <img class="hero-photo" src="assets/hero-skyline.jpg" alt="Sebas at the window before training, city beyond the glass" data-muse-slot="hero-still" />
+          <div class="hero-scrim"></div>
+          <div class="hero-top">
+            <div>
+              <p class="hello">Good morning,</p>
+              <h1 class="hello-name">Sebas</h1>
+              <p class="hello-line">Discipline builds freedom.</p>
+            </div>
+            <button class="avatar-btn" type="button" data-go="profile" aria-label="Profile">
+              <img src="assets/avatar.jpg" alt="" />
+            </button>
+          </div>
+          <article class="today">
+            <p class="kicker">Today's Workout</p>
+            <h2>Upper Body Strength</h2>
+            <p class="today-meta">4 exercises · 52 min</p>
+            <button class="btn btn-mint" id="start-btn" type="button" data-action="start-today">
+              <span id="start-label">Start Workout</span>
+              <svg class="icon"><use href="#i-arrow"/></svg>
+            </button>
+          </article>
+        </div>
+        <div class="home-body">
+          <div class="home-layout">
+            <section class="week">
+              <h2>Weekly Progress</h2>
+              <div class="week-score">
+                <strong>4/5</strong>
+                <span>workouts completed</span>
+              </div>
+              <div class="bars" role="img" aria-label="Weekly volume. Monday through Friday trained. Saturday and Sunday are open.">
+                <span style="--h:46%"></span>
+                <span style="--h:52%"></span>
+                <span style="--h:72%"></span>
+                <span style="--h:100%"></span>
+                <span style="--h:84%"></span>
+                <span class="is-rest" style="--h:38%"></span>
+                <span class="is-rest" style="--h:30%"></span>
+              </div>
+              <div class="day-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+            </section>
+            <div class="home-side">
+              <section class="this-week">
+                <h3>This Week</h3>
+                <div class="stat-row" id="home-stats">
+                  <div><strong id="home-volume">12,480 lb</strong><span>Total Volume</span></div>
+                  <div><strong>4h 12m</strong><span>Active Time</span></div>
+                  <div><strong>620</strong><span>Calories</span></div>
+                </div>
+              </section>
+              <section class="up-next">
+                <h3>Up next</h3>
+                <button class="link-row" type="button" data-go="template" data-id="push-day">
+                  <span class="next-mark" aria-hidden="true"></span>
+                  <span class="link-copy">
+                    <strong>Push Day</strong>
+                    <small>Tomorrow · 5 exercises · 58 min</small>
+                  </span>
+                  <svg class="icon"><use href="#i-chevron"/></svg>
+                </button>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="history" hidden>
+        <header class="page-head">
+          <h1>Workout History</h1>
+        </header>
+        <div class="chips" id="history-chips" role="tablist"></div>
+        <div id="history-list" class="stack"></div>
+      </section>
+
+      <section class="screen" data-screen="history-detail" hidden>
+        <header class="subhead">
+          <button type="button" data-action="back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button>
+          <h1 id="hd-title">Workout</h1>
+        </header>
+        <div id="hd-body" class="pad"></div>
+      </section>
+
+      <section class="screen screen-progress" data-screen="progress" hidden>
+        <header class="page-head dark-head">
+          <h1>Progress</h1>
+          <button class="icon-btn" type="button" data-action="toggle-range" aria-label="Change chart range">
+            <svg class="icon"><use href="#i-clock"/></svg>
+          </button>
+        </header>
+        <div class="chips dark-chips" id="progress-tabs" role="tablist"></div>
+        <div id="progress-body" class="pad"></div>
+      </section>
+
+      <section class="screen" data-screen="library" hidden>
+        <header class="page-head library-head">
+          <p class="eyebrow">Build a stronger you</p>
+          <h1>Exercise<br />Library</h1>
+        </header>
+        <form class="search-wrap" role="search" id="search-form">
+          <label class="search">
+            <svg class="icon"><use href="#i-search"/></svg>
+            <input id="library-search" type="search" placeholder="Search exercises..." autocomplete="off" enterkeyhint="search" />
+          </label>
+        </form>
+        <div class="chips" id="library-chips"></div>
+        <div id="library-list" class="stack"></div>
+      </section>
+
+      <section class="screen" data-screen="detail" hidden>
+        <header class="subhead">
+          <button type="button" data-action="back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button>
+          <span></span>
+          <button class="icon-btn" id="detail-save" type="button" data-action="save-exercise" aria-label="Save exercise" aria-pressed="false">
+            <svg class="icon"><use href="#i-bookmark"/></svg>
+          </button>
+        </header>
+        <div class="detail-intro">
+          <h1 id="detail-title">Exercise</h1>
+          <p class="detail-sub" id="detail-sub"></p>
+        </div>
+        <div class="detail-still">
+          <img id="detail-photo" alt="" />
+          <button class="play" type="button" data-action="open-motion" aria-label="Play movement">
+            <svg class="icon"><use href="#i-play"/></svg>
+          </button>
+        </div>
+        <div class="muscle-card" id="muscle-card"></div>
+        <div class="tabs" id="detail-tabs" role="tablist"></div>
+        <div class="pad" id="detail-panel"></div>
+        <div class="sticky-cta"><button class="btn btn-ink btn-block" type="button" data-action="start-exercise">Start Workout</button></div>
+      </section>
+
+      <section class="screen" data-screen="profile" hidden>
+        <header class="profile-id">
+          <img src="assets/avatar.jpg" alt="" />
+          <div>
+            <h1>Sebas Martinez</h1>
+            <p>Build. Improve. Repeat.</p>
+          </div>
+        </header>
+        <div class="menu">
+          <button type="button" data-go="programs"><svg class="icon"><use href="#i-grid"/></svg><span>My Programs</span><svg class="icon chev"><use href="#i-chevron"/></svg></button>
+          <button type="button" data-go="library"><svg class="icon"><use href="#i-library"/></svg><span>Exercise Library</span><svg class="icon chev"><use href="#i-chevron"/></svg></button>
+          <button type="button" data-go="templates"><svg class="icon"><use href="#i-layers"/></svg><span>Workout Templates</span><svg class="icon chev"><use href="#i-chevron"/></svg></button>
+          <button type="button" data-go="progress"><svg class="icon"><use href="#i-progress"/></svg><span>Progress &amp; Stats</span><svg class="icon chev"><use href="#i-chevron"/></svg></button>
+          <button type="button" data-go="settings"><svg class="icon"><use href="#i-gear"/></svg><span>Settings</span><svg class="icon chev"><use href="#i-chevron"/></svg></button>
+          <button type="button" data-go="help"><svg class="icon"><use href="#i-help"/></svg><span>Help &amp; Support</span><svg class="icon chev"><use href="#i-chevron"/></svg></button>
+        </div>
+        <button class="promo" type="button" data-go="progress">
+          <img src="assets/better-yesterday.jpg" alt="" />
+          <span class="promo-copy">Better<br />Than<br />Yesterday<i></i></span>
+        </button>
+      </section>
+
+      <section class="screen" data-screen="programs" hidden>
+        <header class="subhead"><button type="button" data-action="back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button><h1>My Programs</h1></header>
+        <div id="program-list" class="pad stack"></div>
+      </section>
+
+      <section class="screen" data-screen="program" hidden>
+        <header class="subhead"><button type="button" data-action="back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button><h1 id="program-title">Program</h1></header>
+        <div id="program-body" class="pad"></div>
+      </section>
+
+      <section class="screen" data-screen="templates" hidden>
+        <header class="subhead"><button type="button" data-action="back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button><h1>Workout Templates</h1></header>
+        <div id="template-list" class="stack"></div>
+      </section>
+
+      <section class="screen" data-screen="template" hidden>
+        <header class="subhead"><button type="button" data-action="back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button><h1 id="template-title">Template</h1></header>
+        <div id="template-body" class="pad"></div>
+        <div class="sticky-cta"><button class="btn btn-ink" type="button" data-action="start-template">Start Workout</button></div>
+      </section>
+
+      <section class="screen" data-screen="settings" hidden>
+        <header class="subhead"><button type="button" data-action="back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button><h1>Settings</h1></header>
+        <div class="pad settings">
+          <h2>Weight unit</h2>
+          <div class="seg" id="unit-seg" role="group" aria-label="Weight unit">
+            <button type="button" data-action="set-unit" data-unit="lb">lb</button>
+            <button type="button" data-action="set-unit" data-unit="kg">kg</button>
+          </div>
+          <h2>Default rest</h2>
+          <div class="chips" id="rest-chips"></div>
+          <p class="note">Single-exercise sessions use this rest. Templates keep their own, so Upper Body Strength stays at 45 seconds. A workout already running keeps the rest it started with.</p>
+          <h2>Motion</h2>
+          <p class="note">Exercise stages keep a still frame until a Muse motion source is attached. Nothing here calls an outside service.</p>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="help" hidden>
+        <header class="subhead"><button type="button" data-action="back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button><h1>Help &amp; Support</h1></header>
+        <div class="pad help">
+          <article>
+            <h2>How do I log a set?</h2>
+            <p>From the workout, tap Log Set. Minus and plus change the highlighted value, and the keypad does the same. The first digit replaces the number. Bodyweight exercises such as the pull-up log as BW until you add load. Other exercises need a weight above zero.</p>
+          </article>
+          <article>
+            <h2>Can I cut the rest short?</h2>
+            <p>Skip Rest ends it immediately. Closing the rest screen returns you to the set while the clock keeps running on the ring. It is based on the time you started, so leaving the screen does not slow it down. When it reaches zero you come back to the workout.</p>
+          </article>
+          <article>
+            <h2>How does movement connect?</h2>
+            <p>The stage is marked with data-muse-slot="exercise-motion" and data-exercise-id. Set window.ALDER_MOTION_MOUNT to a function and it is called with that element so Muse can mount there. The page also emits alder:motion with the exercise, phase, time, and duration as the playhead moves.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen screen-fill workout" data-screen="workout" hidden>
+        <img class="workout-bg" id="wk-bg" alt="" data-muse-slot="exercise-motion" />
+        <div class="workout-fade"></div>
+        <div class="workout-plate" id="wk-plate" hidden>
+          <img id="wk-plate-img" alt="" />
+        </div>
+        <div class="workout-panel">
+          <header class="wk-top">
+            <button class="icon-btn light" type="button" data-action="end-ask" aria-label="Close workout"><svg class="icon"><use href="#i-close"/></svg></button>
+            <button class="icon-btn light" id="wk-save" type="button" data-action="save-exercise" aria-label="Save exercise"><svg class="icon"><use href="#i-bookmark"/></svg></button>
+          </header>
+          <div class="wk-title">
+            <h1 id="wk-name">Barbell Bench Press</h1>
+            <p id="wk-meta">Chest · Compound</p>
+          </div>
+          <div class="wk-progress">
+            <div class="track"><span id="wk-bar"></span></div>
+            <button type="button" id="wk-fraction" data-action="open-sequence">1/4</button>
+          </div>
+          <div class="wk-spacer" data-action="open-motion" role="presentation"></div>
+          <div class="wk-dock">
+            <p class="wk-set" id="wk-set">Set 1/4</p>
+            <button class="wk-weight metric-btn" type="button" data-action="select-metric" data-metric="weight">
+              <strong id="wk-weight">185</strong><small id="wk-unit">lb</small>
+            </button>
+            <button class="wk-reps metric-btn" type="button" data-action="select-metric" data-metric="reps">
+              <strong id="wk-reps">8</strong> <span>reps</span>
+            </button>
+            <div class="ring-row">
+              <button class="step" type="button" data-action="nudge" data-dir="-1" aria-label="Decrease"><svg class="icon"><use href="#i-minus"/></svg></button>
+              <button class="ring ring-sm" type="button" data-action="open-rest" aria-label="Rest timer">
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="mintGradA" x1="0" y1="1" x2="1" y2="0">
+                      <stop offset="0" stop-color="#6FD6A8"/>
+                      <stop offset="1" stop-color="#E7FFF4"/>
+                    </linearGradient>
+                  </defs>
+                  <circle class="ring-track" cx="60" cy="60" r="52"/>
+                  <circle class="ring-value" id="wk-ring" cx="60" cy="60" r="52" data-c="326.73"/>
+                </svg>
+                <span class="ring-label"><strong id="wk-clock">0:45</strong><small id="wk-clock-cap">Rest Time</small></span>
+              </button>
+              <button class="step" type="button" data-action="nudge" data-dir="1" aria-label="Increase"><svg class="icon"><use href="#i-plus"/></svg></button>
+            </div>
+            <div class="session-stats" id="wk-stats">
+              <div><strong id="wk-vol">0</strong><span>Volume</span></div>
+              <div><strong id="wk-sets">0</strong><span>Sets</span></div>
+              <div><strong id="wk-elapsed">0:00</strong><span>Elapsed</span></div>
+            </div>
+            <button class="btn btn-white" id="wk-primary" type="button" data-action="primary">Log Set</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen screen-fill rest" data-screen="rest" hidden>
+        <img class="rest-bg" src="assets/gym-dark.jpg" alt="" />
+        <div class="rest-shade"></div>
+        <header class="rest-top">
+          <button class="icon-btn light" type="button" data-action="close-rest" aria-label="Close rest"><svg class="icon"><use href="#i-close"/></svg></button>
+          <h1>Rest Timer</h1>
+          <span></span>
+        </header>
+        <button class="ring ring-lg" id="rest-toggle" type="button" data-action="pause-rest" aria-label="Pause rest">
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <defs>
+              <linearGradient id="mintGradB" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0" stop-color="#5FCB9A"/>
+                <stop offset="0.55" stop-color="#B6F3D6"/>
+                <stop offset="1" stop-color="#F3FFF8"/>
+              </linearGradient>
+            </defs>
+            <circle class="ring-track" cx="100" cy="100" r="78"/>
+            <circle class="ring-value" id="rest-ring" cx="100" cy="100" r="78" data-c="490.09"/>
+          </svg>
+          <span class="ring-label">
+            <strong id="rest-clock">0:45</strong>
+            <small id="rest-hint">Tap to pause</small>
+          </span>
+        </button>
+        <div class="rest-next">
+          <p>Next Set</p>
+          <h2 id="rest-name">Barbell Bench Press</h2>
+          <p id="rest-detail">8 reps · 185 lb</p>
+        </div>
+        <button class="btn btn-ghost" type="button" data-action="skip-rest">Skip Rest</button>
+      </section>
+
+      <section class="screen screen-fill log" data-screen="log" hidden>
+        <header class="log-top">
+          <button class="icon-btn light" type="button" data-action="close-log" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
+          <div>
+            <h1 id="log-name">Barbell Bench Press</h1>
+            <p id="log-set">Set 1 of 4</p>
+          </div>
+        </header>
+        <div class="log-card">
+          <div class="log-field">
+            <span id="log-weight-label">Weight (lb)</span>
+            <div class="log-step">
+              <button type="button" data-action="log-step" data-field="weight" data-dir="-1" aria-label="Decrease weight">−</button>
+              <button class="log-value" id="log-weight" type="button" data-action="log-focus" data-field="weight">185</button>
+              <button type="button" data-action="log-step" data-field="weight" data-dir="1" aria-label="Increase weight">+</button>
+            </div>
+          </div>
+          <div class="log-field">
+            <span>Reps</span>
+            <div class="log-step">
+              <button type="button" data-action="log-step" data-field="reps" data-dir="-1" aria-label="Decrease reps">−</button>
+              <button class="log-value" id="log-reps" type="button" data-action="log-focus" data-field="reps">8</button>
+              <button type="button" data-action="log-step" data-field="reps" data-dir="1" aria-label="Increase reps">+</button>
+            </div>
+          </div>
+          <button class="btn btn-mint btn-block" type="button" data-action="commit-log">Log Set</button>
+        </div>
+        <div class="keys" id="keys">
+          <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+          <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+          <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+          <span></span><button type="button" data-key="0">0</button>
+          <button type="button" data-key="back" aria-label="Delete"><svg class="icon"><use href="#i-backspace"/></svg></button>
+        </div>
+      </section>
+
+      <section class="screen screen-fill complete" data-screen="complete" hidden>
+        <div class="complete-inner">
+          <div class="burst" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <div class="check"><svg class="icon"><use href="#i-check"/></svg></div>
+          <h1>Workout Complete!</h1>
+          <p class="complete-name" id="complete-name">Upper Body Strength</p>
+          <p class="complete-meta" id="complete-meta">4 exercises · 52 min</p>
+          <div class="complete-card" id="complete-stats"></div>
+          <button class="btn btn-ink btn-block" type="button" data-action="view-workout">View Workout</button>
+          <button class="btn btn-line btn-block" id="save-template" type="button" data-action="save-template">Save to Library</button>
+          <button class="done-link" type="button" data-go="home">Done</button>
+        </div>
+      </section>
+
+      <section class="screen screen-fill motion" data-screen="motion" hidden>
+        <div class="motion-stage" id="motion-slot" data-muse-slot="exercise-motion">
+          <img id="motion-photo" alt="" />
+          <div class="motion-shade"></div>
+        </div>
+        <header class="motion-top">
+          <button class="icon-btn light" type="button" data-action="close-motion" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
+          <button class="icon-btn light" id="motion-save" type="button" data-action="save-exercise" aria-label="Save exercise"><svg class="icon"><use href="#i-bookmark"/></svg></button>
+        </header>
+        <div class="motion-copy">
+          <h1 id="motion-title">Seated Dumbbell Press</h1>
+          <p id="motion-sub">Shoulders · Compound</p>
+        </div>
+        <div class="motion-controls">
+          <div class="scrub">
+            <span id="motion-now">0:12</span>
+            <input id="motion-range" type="range" min="0" max="30" step="0.1" value="12" aria-label="Movement timeline" />
+            <span id="motion-dur">0:30</span>
+          </div>
+          <div class="phases" id="motion-phases"></div>
+          <p class="cue" id="motion-cue"></p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <nav class="tabbar" aria-label="Primary">
+    <button type="button" data-go="home" data-tab="home"><svg class="icon"><use href="#i-home"/></svg><span>Home</span></button>
+    <button type="button" data-go="history" data-tab="workouts"><svg class="icon"><use href="#i-workouts"/></svg><span>Workouts</span></button>
+    <button type="button" data-go="progress" data-tab="progress"><svg class="icon"><use href="#i-progress"/></svg><span>Progress</span></button>
+    <button type="button" data-go="library" data-tab="library"><svg class="icon"><use href="#i-library"/></svg><span>Library</span></button>
+    <button type="button" data-go="profile" data-tab="more"><svg class="icon"><use href="#i-more"/></svg><span>More</span></button>
+  </nav>
+
+  <div class="sheet" id="sequence-sheet" hidden>
+    <button class="sheet-scrim" type="button" data-action="close-sheet" aria-label="Close sequence"></button>
+    <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="seq-title">
+      <div class="grab"></div>
+      <header>
+        <h2 id="seq-title">Workout</h2>
+        <button type="button" data-action="close-sheet">Close</button>
+      </header>
+      <p class="seq-stats" id="seq-stats"></p>
+      <div id="seq-list"></div>
+      <button class="btn btn-ghost btn-block" type="button" data-action="end-ask">Finish workout</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h2 id="modal-title"></h2>
+      <p id="modal-body"></p>
+      <div id="modal-actions"></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <svg class="sprite" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.6 12 4l8 6.6V20a1 1 0 0 1-1 1h-5.2v-6.1H10.2V21H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-workouts" viewBox="0 0 24 24"><path d="M3 9.2v5.6M6.2 7v10M17.8 7v10M21 9.2v5.6M6.2 12h11.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-progress" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15.5l3.1-3.6 2.8 2L19 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-library" viewBox="0 0 24 24"><path d="M5 5.2h5.6A2.2 2.2 0 0 1 12.8 7.4V20H7.2A2.2 2.2 0 0 0 5 17.8zM19 5.2h-5.6A2.2 2.2 0 0 0 11.2 7.4V20h5.6A2.2 2.2 0 0 0 19 17.8z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18" cy="12" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.1" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 19.2c1.4-2.8 3.6-4 6.5-4s5.1 1.2 6.5 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m15.8 15.8 3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4.5h10a1 1 0 0 1 1 1V20l-6-3.4L6 20V5.5a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bookmark-on" viewBox="0 0 24 24"><path d="M7 4.5h10a1 1 0 0 1 1 1V20l-6-3.4L6 20V5.5a1 1 0 0 1 1-1z" fill="currentColor" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M9 7.5v9l8-4.5z" fill="currentColor"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m6 12.5 4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 8.5V12l2.6 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 4.2v2M12 17.8v2M4.2 12h2M17.8 12h2M6.4 6.4l1.4 1.4M16.2 16.2l1.4 1.4M17.6 6.4l-1.4 1.4M7.8 16.2l-1.4 1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.4 9.2a2.6 2.6 0 0 1 5.1.8c0 1.7-2.5 2-2.5 3.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.8" r=".8" fill="currentColor"/></symbol>
+    <symbol id="i-backspace" viewBox="0 0 24 24"><path d="M8.2 6.5h11.2a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H8.2L3.5 12z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m11 10 4 4M15 10l-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 4 8 4.2L12 12.4 4 8.2zM4 12.2l8 4.2 8-4.2M4 15.6 12 19.8l8-4.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  </svg>
+  <script src="app.js" defer></script>
+</body>
+</html>
