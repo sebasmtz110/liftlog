@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY } from "../lib/supabase";
 import { formatDateTime } from "../lib/format";
-import { muscleTagClass } from "../lib/muscleColors";
 import { loadSplit } from "../lib/presets";
 import ConfigBanner from "./components/ConfigBanner";
 import { useAuth } from "./components/AuthContext";
@@ -18,6 +17,12 @@ function fmtVol(v) {
   if (n >= 10000) return Math.round(n / 1000) + "k";
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
   return String(n);
+}
+
+function fmtTime(min) {
+  const m = Math.round(min || 0);
+  if (m >= 60) return `${Math.floor(m / 60)}h ${m % 60}m`;
+  return `${m}m`;
 }
 
 /** Monday 00:00 of the week containing `d` (local time). */
@@ -50,10 +55,9 @@ function DumbbellGlyph() {
   );
 }
 
-function ThumbTile({ name, muscle, className = "" }) {
-  const tint = muscleTagClass(muscle);
+function ThumbTile({ name, className = "" }) {
   return (
-    <span className={`thumb-tile${tint ? " " + tint : ""}${className ? " " + className : ""}`} aria-hidden="true">
+    <span className={`thumb-tile${className ? " " + className : ""}`} aria-hidden="true">
       {(name || "?").trim().charAt(0).toUpperCase()}
     </span>
   );
@@ -88,12 +92,15 @@ export default function Home() {
   const [startingTpl, setStartingTpl] = useState(null);
   const [todayLabel, setTodayLabel] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [greeting, setGreeting] = useState("Good morning");
   const [goal, setGoal] = useState(4);
   const [split, setSplit] = useState(null);
   const [ti, setTi] = useState(null);
 
   useEffect(() => {
     const now = new Date();
+    const hour = now.getHours();
+    setGreeting(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
     setTi(todayIdx());
     setTodayLabel(
       now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }).toUpperCase()
@@ -147,6 +154,12 @@ export default function Home() {
         weekWorkouts,
         weekVolume: weekSets.reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0),
         weekSetCount: weekSets.length,
+        weekMinutes: Math.round(weekWorkouts.reduce((s, w) => {
+          if (w.started_at && w.ended_at) {
+            return s + (new Date(w.ended_at) - new Date(w.started_at)) / 60000;
+          }
+          return s;
+        }, 0)),
         streak,
       });
       if (user) {
@@ -209,187 +222,146 @@ export default function Home() {
   const today = split && ti !== null ? split.days.find((d) => d.day_index === ti) : null;
   const templates = split ? split.days.map((d) => d.template).filter(Boolean) : [];
 
+  // Weekly bars: volume per day Mon..Sun
+  const weekVol = (m?.weekDays ?? []).map((d) => {
+    const key = d.toDateString();
+    return (m?.weekWorkouts ?? [])
+      .filter((w) => new Date(w.started_at).toDateString() === key)
+      .flatMap((w) => w.sets ?? [])
+      .reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0);
+  });
+  const maxVol = Math.max(1, ...weekVol);
+
   return (
     <>
       <ConfigBanner />
-      <header className="screen-head">
-        <p className="sl-date">{todayLabel}</p>
-        <div className="greet-row">
-          <h1 className="large-title">Hey, {displayName || "lifter"}</h1>
-          <span className="avatar-circle" aria-hidden="true">
-            <DumbbellGlyph />
-          </span>
+      {/* Hero — editorial training visual (real app asset) */}
+      <div className="hero">
+        <img className="hero-photo" src="/hero-training.jpg" alt="" aria-hidden="true" />
+        <div className="hero-avatar" aria-hidden="true">
+          <img src="/avatar.jpg" alt="" onError={(e) => {
+            e.currentTarget.style.display = "none";
+            e.currentTarget.parentElement.textContent = (displayName || "S").charAt(0).toUpperCase();
+          }} />
         </div>
-        {user && (
-          <p className="footnote" style={{ marginTop: 6 }}>
-            {user.email} ·{" "}
-            <button
-              onClick={signOut}
-              style={{ color: "var(--mu)", textDecoration: "underline", background: "none", border: 0, padding: 0 }}
-            >
-              Sign out
-            </button>
-          </p>
-        )}
-      </header>
+        <p className="hero-greet">{greeting},</p>
+        <h1 className="hero-name">{displayName || "Sebas"}</h1>
+        <p className="hero-tag">Discipline builds freedom.</p>
+      </div>
 
-      <div className="screen-body">
-        {/* Week dots — MON..SUN, logged = pink fill + check, today = pink ring */}
-        <div className="week-dots" aria-label="Workouts this week">
-          {(m?.weekDays ?? []).map((d, i) => {
-            const key = d.toDateString();
-            const done = (m?.logged ?? []).includes(key);
-            const isToday = key === m?.todayStr;
-            return (
-              <div className="wdot-col" key={i}>
-                <span className="wdot-label">{DAY_LABELS[i]}</span>
-                <span className={`wdot${done ? " done" : ""}${!done && isToday ? " today" : ""}`}>
-                  {done && <CheckIcon />}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Today — training day or rest day, like SebasFit's home */}
-        {split && today && (
-          <>
-            <p className="kicker">TODAY</p>
-            <div className="spacer-8" />
+      {/* Today's workout — dark card overlapping hero, like the board */}
+      {split && today && (
+        <div className="today-card">
+            <p className="tc-kick">Today's Workout</p>
             {today.is_rest ? (
-              <div className="card">
-                <h2 className="large-title" style={{ margin: "0 0 6px" }}>Rest day</h2>
-                <p className="footnote">Recovery is when you grow. Eat enough protein, sleep 7–9h.</p>
+              <>
+                <p className="tc-title">Rest day</p>
+                <p className="tc-meta">Recovery is when you grow. Sleep 7–9h.</p>
                 <div className="spacer-12" />
-                <div className="chip-row">
-                  {templates.map((t) => (
-                    <button
-                      key={t.id}
-                      className="chip-btn"
-                      disabled={startingTpl !== null}
-                      onClick={() => startFromTemplate(t)}
-                    >
-                      Train {t.name}
+                <div className="chip-row" style={{ marginTop: 0 }}>
+                  {templates.slice(0, 3).map((t) => (
+                    <button key={t.id} className="pill" style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}
+                      disabled={startingTpl !== null} onClick={() => startFromTemplate(t)}>
+                      {t.name}
                     </button>
                   ))}
                 </div>
-              </div>
+              </>
             ) : today.template ? (
-              <div className="card">
-                <p className="kicker">{today.label.toUpperCase()}</p>
-                <div className="spacer-8" />
-                {today.muscle_targets && <p className="footnote">{today.muscle_targets}</p>}
+              <>
+                <p className="tc-title">{today.template.name}</p>
+                <p className="tc-meta">
+                  {today.template.template_exercises?.length ?? 0} exercises
+                  {today.muscle_targets ? ` · ${today.muscle_targets}` : ""}
+                </p>
                 <div className="spacer-12" />
-                <button
-                  className="btn btn-filled"
-                  style={{ width: "100%" }}
+                <button className="btn btn-mint" style={{ padding: "14px 28px", fontSize: 16 }}
                   disabled={startingTpl === today.template.id}
-                  onClick={() => startFromTemplate(today.template)}
-                >
-                  {startingTpl === today.template.id ? "Starting…" : `Start ${today.template.name}`}
+                  onClick={() => startFromTemplate(today.template)}>
+                  {startingTpl === today.template.id ? "Starting…" : "Start Workout →"}
                 </button>
-              </div>
+              </>
             ) : null}
-            <div className="spacer-16" />
-          </>
-        )}
+        </div>
+      )}
 
-        {/* Hero card — latest finished workout, or empty state */}
-        <div className="card">
-          <p className="kicker">{latest ? "Latest workout" : "Get started"}</p>
-          <div className="spacer-8" />
-          {m === null ? (
-            <p className="loading">Loading…</p>
-          ) : latest ? (
-            <>
-              <h2 className="large-title" style={{ margin: "0 0 6px" }}>{latestTitle}</h2>
-              {latestMuscles.length > 0 && (
-                <p className="footnote">{latestMuscles.join(", ")}</p>
-              )}
-              {latestExs.length > 0 && (
-                <div className="thumb-row">
-                  {latestExs.slice(0, 4).map((e, i) => (
-                    <ThumbTile key={i} name={e.name} muscle={e.muscle} />
-                  ))}
-                </div>
-              )}
-              <p className="footnote">
-                {latestExs.length} {latestExs.length === 1 ? "exercise" : "exercises"} ·{" "}
-                {(latest.sets ?? []).length} {(latest.sets ?? []).length === 1 ? "set" : "sets"} ·{" "}
-                {fmtVol(workoutVolume(latest))} lb
-              </p>
-            </>
-          ) : (
-            <>
-              <h2 className="large-title" style={{ margin: "0 0 6px" }}>No workouts yet</h2>
-              <p className="footnote">Start your first session to see it here.</p>
-              <div className="spacer-8" />
-            </>
-          )}
-          <button
-            className="btn btn-filled"
-            onClick={hasActive ? () => router.push("/session") : startWorkout}
-            disabled={starting || !isConfigured}
-          >
-            {starting ? "Starting…" : hasActive ? "Resume workout" : "Start workout"}
-          </button>
+      <div className="screen-body" style={{ background: "var(--bg)" }}>
+        <div className="spacer-20" />
+
+        {/* Weekly progress */}
+        <h2 className="title-2">Weekly Progress</h2>
+        <div className="spacer-8" />
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <p style={{ fontSize: 30, lineHeight: "36px", fontWeight: 700 }}>{m?.weekWorkouts.length ?? 0}/{goal}</p>
+          <p className="footnote">workouts completed</p>
+        </div>
+        <div className="week-bars" aria-label="Volume by day">
+          {(m?.weekDays ?? []).map((d, i) => (
+            <div className="wbar-col" key={i}>
+              <div className="wbar-track">
+                <div className={`wbar${weekVol[i] > 0 ? " fill" : ""}`} style={{ height: `${Math.max(24, (weekVol[i] / maxVol) * 120)}px` }} />
+              </div>
+              <span className="wbar-label">{DAY_LABELS[i][0] + DAY_LABELS[i].slice(1).toLowerCase()}</span>
+            </div>
+          ))}
         </div>
 
-        {/* This week — real numbers from Supabase */}
-        <h2 className="section-title">This week</h2>
-        {m === null ? (
-          <p className="loading">Loading…</p>
-        ) : (
-          <div className="stat-grid-3">
-            <div className="stat-card">
-              <p className="stat-kicker">Workouts</p>
-              <p className="stat-value">{m.weekWorkouts.length}</p>
-              <p className="stat-label">of {goal} goal</p>
-            </div>
-            <div className="stat-card">
-              <p className="stat-kicker">Volume</p>
-              <p className="stat-value">{fmtVol(m.weekVolume)}</p>
-              <p className="stat-label">lb lifted</p>
-            </div>
-            <div className="stat-card">
-              <p className="stat-kicker">Streak</p>
-              <p className="stat-value">{m.streak}</p>
-              <p className="stat-label">{m.streak === 1 ? "day" : "days"}</p>
-            </div>
-          </div>
-        )}
+        <div className="spacer-24" />
+
+        {/* This week stats — board: small gray label + 3 columns */}
+        <p className="footnote" style={{ marginBottom: 4 }}>This Week</p>
+        <div className="stat-band">
+          <div><p className="stat-value tnum">{fmtVol(m?.weekVolume)}</p><p className="stat-label">Volume</p></div>
+          <div><p className="stat-value tnum">{fmtTime(m?.weekMinutes)}</p><p className="stat-label">Time</p></div>
+          <div><p className="stat-value tnum">{Math.round((m?.weekMinutes ?? 0) * 5)}</p><p className="stat-label">Calories</p></div>
+        </div>
+
+        {/* Resume / start */}
+        {hasActive ? (
+          <>
+            <button className="btn btn-filled btn-block" onClick={() => router.push("/session")}>
+              Resume workout
+            </button>
+            <div className="spacer-16" />
+          </>
+        ) : null}
 
         {/* Recent workouts */}
-        <h2 className="section-title">Recent workouts</h2>
+        <div className="row-2" style={{ justifyContent: "space-between", marginBottom: 4 }}>
+          <h2 className="title-2">Recent</h2>
+          <button className="btn btn-plain btn-sm" onClick={() => router.push("/history")}>View all</button>
+        </div>
         {m === null ? (
           <p className="loading">Loading…</p>
         ) : m.finished.length === 0 ? (
-          <div className="card">
-            <p className="body">No workouts yet.</p>
-            <div className="spacer-8" />
-            <p className="footnote">
-              Tap <strong>Start workout</strong> to log your first session.
-            </p>
-          </div>
+          <p className="footnote">No workouts yet — start your first session above.</p>
         ) : (
-          m.finished.slice(0, 5).map((w) => {
+          m.finished.slice(0, 4).map((w) => {
             const exs = workoutExercises(w);
             const first = exs[0];
             return (
               <button key={w.id} className="recent-row" onClick={() => router.push("/history")}>
-                {first && <ThumbTile name={first.name} muscle={first.muscle} className="recent-thumb" />}
+                {first && <ThumbTile name={first.name} className="recent-thumb" />}
                 <div className="recent-info">
                   <p className="headline">{formatDateTime(w.started_at)}</p>
                   <div className="spacer-8" />
                   <p className="footnote">
                     {(w.sets ?? []).length} {(w.sets ?? []).length === 1 ? "set" : "sets"} ·{" "}
-                    {exs.length} {exs.length === 1 ? "exercise" : "exercises"}
+                    {exs.length} {exs.length === 1 ? "exercise" : "exercises"} · {fmtVol(workoutVolume(w))} lb
                   </p>
                 </div>
                 <span className="chev">›</span>
               </button>
             );
           })
+        )}
+        {user && (
+          <p className="footnote" style={{ marginTop: 24, textAlign: "center" }}>
+            {user.email} ·{" "}
+            <button onClick={signOut} style={{ color: "var(--mu)", textDecoration: "underline", background: "none", border: 0, padding: 0 }}>
+              Sign out
+            </button>
+          </p>
         )}
       </div>
     </>

@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase, isConfigured } from "../../lib/supabase";
 import { hasDemo } from "../../lib/exerciseDemos";
+import { visualForExercise } from "../../lib/exerciseVisuals";
 import { DemoThumb, GuideSheet } from "../components/ExerciseDemo";
-import { muscleTagClass } from "../../lib/muscleColors";
 import ConfigBanner from "../components/ConfigBanner";
 
 /**
@@ -109,8 +109,8 @@ export default function Exercises() {
     <>
       <ConfigBanner />
       <header className="screen-head">
-        <p className="kicker">LIBRARY</p>
-        <h1 className="large-title">Exercises</h1>
+        <p className="kicker">BUILD A STRONGER YOU</p>
+        <h1 className="large-title" style={{ fontSize: 40, lineHeight: "48px" }}>Exercise<br />Library</h1>
       </header>
 
       <div className="screen-body">
@@ -140,17 +140,18 @@ export default function Exercises() {
           <div className="grouped-list">
             {exercises.map((e) => (
               <div className="grouped-row" key={e.id}>
-                {hasDemo(e.name) ? (
-                  <button
-                    className="demo-thumb-btn"
-                    onClick={() => setGuideEx(e)}
-                    aria-label={`${e.name} details`}
-                  >
-                    <DemoThumb name={e.name} />
-                  </button>
-                ) : (
-                  <span className="demo-thumb-empty" aria-hidden="true" />
-                )}
+                {(() => {
+                  const photo = visualForExercise(e.name) || "/exercise-visuals/bench-press.jpg";
+                  return (
+                    <button
+                      className="demo-thumb-btn"
+                      onClick={() => setGuideEx(e)}
+                      aria-label={`${e.name} details`}
+                    >
+                      <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    </button>
+                  );
+                })()}
                 <button
                   className="grouped-row-main"
                   style={{ textAlign: "left" }}
@@ -159,7 +160,7 @@ export default function Exercises() {
                 >
                   <span className="grouped-row-title">{e.name}</span>
                   <div className="spacer-4" />
-                  <span className={`muscle-tag ${muscleTagClass(e.muscle_group)}`}>{e.muscle_group}</span>
+                  <span className="muscle-tag">{e.muscle_group}</span>
                 </button>
                 <div className="grouped-row-actions">
                   <button
@@ -167,14 +168,20 @@ export default function Exercises() {
                     aria-label={`Edit ${e.name}`}
                     onClick={() => openEdit(e)}
                   >
-                    ✎
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+                      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4.2 1.2L5 15Z" />
+                    </svg>
                   </button>
                   <button
                     className="icon-btn"
                     aria-label={`Delete ${e.name}`}
                     onClick={() => setConfirmDelete(e.id)}
                   >
-                    ×
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+                      strokeLinecap="round" aria-hidden="true">
+                      <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 13h8l1-13" />
+                    </svg>
                   </button>
                 </div>
               </div>
