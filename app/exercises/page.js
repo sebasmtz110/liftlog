@@ -13,23 +13,32 @@ const TABS = ["Instructions", "Tips", "Sets & Reps"];
 function muscleMarkup(ex) {
   const face = ex.view === "back" ? "back" : "front";
   const cls = (id) => (ex.hot?.includes(id) ? "is-hot" : ex.warm?.includes(id) ? "is-warm" : "");
+
+  // Cleaner anatomical muscle model — smooth body silhouette with defined muscle groups
+  const bodyFront = `<path fill="#F5F5F4" stroke="#D4D4D4" stroke-width="1.4" d="M70 14c7 0 12 5.5 12 11 0 4.5-2.8 8.2-6.5 9.3 1.8 1.6 5.5 2.6 9.3 3.6 17 4.5 28 18 28 35 0 9-2.8 15-7.5 19l1.8 20c7.5 2.8 12.5 9.5 13.5 17l3.8 34c.9 9.5-5.8 15-14.2 15h-7.5l-3.8-28-5.7 28h-11.4l-5.7-34h-1.9l-5.7 34H54.5l-5.7-28-3.8 28h-7.5c-8.4 0-15.1-5.5-14.2-15l3.8-34c1-7.5 6-14.2 13.5-17l1.8-20c-4.7-4-7.5-10-7.5-19 0-17 11-30.5 28-35 3.8-1 7.5-2 9.3-3.6-3.7-1.1-6.5-4.8-6.5-9.3 0-5.5 5-11 12-11z"/>`;
+
+  const bodyBack = bodyFront; // same silhouette
+
   const front = `
-    <g class="muscle ${cls("shoulders")}"><ellipse cx="34" cy="58" rx="12" ry="9"/><ellipse cx="106" cy="58" rx="12" ry="9"/></g>
-    <g class="muscle ${cls("chest")}"><ellipse cx="54" cy="74" rx="14" ry="11"/><ellipse cx="86" cy="74" rx="14" ry="11"/></g>
-    <g class="muscle ${cls("biceps")}"><ellipse cx="26" cy="86" rx="7" ry="14"/><ellipse cx="114" cy="86" rx="7" ry="14"/></g>
-    <g class="muscle ${cls("abs")}"><rect x="58" y="90" width="24" height="28" rx="6"/></g>
-    <g class="muscle ${cls("quads")}"><ellipse cx="52" cy="150" rx="12" ry="22"/><ellipse cx="88" cy="150" rx="12" ry="22"/></g>
-    <g class="muscle ${cls("calves")}"><ellipse cx="50" cy="192" rx="7" ry="12"/><ellipse cx="90" cy="192" rx="7" ry="12"/></g>`;
+    <g class="muscle ${cls("shoulders")}"><path d="M42 52c5-3 11-4 16-2 3 4 2 10-2 13-5 2-11 1-14-2-2-4-2-7 0-9z"/><path d="M98 52c-5-3-11-4-16-2-3 4-2 10 2 13 5 2 11 1 14-2 2-4 2-7 0-9z"/></g>
+    <g class="muscle ${cls("chest")}"><path d="M52 68c6-2 13-2 18 1 3 6 2 13-3 17-6 2-13 1-16-3-2-6-1-11 1-15z"/><path d="M88 68c-6-2-13-2-18 1-3 6-2 13 3 17 6 2 13 1 16-3 2-6 1-11-1-15z"/></g>
+    <g class="muscle ${cls("biceps")}"><path d="M30 78c3-1 6 1 7 5l3 12c1 4-1 7-4 8-3 0-6-2-6-6l-2-12c0-4 0-6 2-7z"/><path d="M110 78c-3-1-6 1-7 5l-3 12c-1 4 1 7 4 8 3 0 6-2 6-6l2-12c0-4 0-6-2-7z"/></g>
+    <g class="muscle ${cls("abs")}"><path d="M60 92h20c2 0 4 2 4 4v22c0 2-2 4-4 4H60c-2 0-4-2-4-4V96c0-2 2-4 4-4z"/><line x1="70" y1="92" x2="70" y2="122" stroke="#D4D4D4" stroke-width="1"/><line x1="56" y1="102" x2="84" y2="102" stroke="#D4D4D4" stroke-width="1"/><line x1="56" y1="112" x2="84" y2="112" stroke="#D4D4D4" stroke-width="1"/></g>
+    <g class="muscle ${cls("quads")}"><path d="M50 138c4-2 9-2 12 1 2 8 1 18-2 26-4 2-9 1-11-2-1-9 0-18 1-25z"/><path d="M90 138c-4-2-9-2-12 1-2 8-1 18 2 26 4 2 9 1 11-2 1-9 0-18-1-25z"/></g>
+    <g class="muscle ${cls("calves")}"><path d="M52 176c2-1 5 0 6 3l2 10c1 3-1 6-3 6-3 0-5-2-5-5l-1-10c0-2 0-3 1-4z"/><path d="M88 176c-2-1-5 0-6 3l-2 10c-1 3 1 6 3 6 3 0 5-2 5-5l1-10c0-2 0-3-1-4z"/></g>`;
+
   const back = `
-    <g class="muscle ${cls("traps")}"><ellipse cx="70" cy="52" rx="22" ry="8"/></g>
-    <g class="muscle ${cls("shoulders")}"><ellipse cx="34" cy="58" rx="11" ry="8"/><ellipse cx="106" cy="58" rx="11" ry="8"/></g>
-    <g class="muscle ${cls("lats")}"><ellipse cx="48" cy="86" rx="16" ry="20"/><ellipse cx="92" cy="86" rx="16" ry="20"/></g>
-    <g class="muscle ${cls("triceps")}"><ellipse cx="24" cy="82" rx="6" ry="13"/><ellipse cx="116" cy="82" rx="6" ry="13"/></g>
-    <g class="muscle ${cls("glutes")}"><ellipse cx="54" cy="124" rx="13" ry="10"/><ellipse cx="86" cy="124" rx="13" ry="10"/></g>
-    <g class="muscle ${cls("hamstrings")}"><ellipse cx="52" cy="156" rx="11" ry="18"/><ellipse cx="88" cy="156" rx="11" ry="18"/></g>
-    <g class="muscle ${cls("calves")}"><ellipse cx="50" cy="192" rx="7" ry="12"/><ellipse cx="90" cy="192" rx="7" ry="12"/></g>`;
-  return `<svg viewBox="0 0 140 210" aria-hidden="true"><path fill="#F5F5F4" stroke="#D4D4D4" stroke-width="1.4" d="M70 16c8 0 13 6 13 12 0 5-3 9-7 10 2 2 6 3 10 4 18 5 30 20 30 38 0 10-3 16-8 20l2 22c8 3 13 10 14 18l4 36c1 10-6 16-15 16h-8l-4-30-6 30h-12l-6-36h-2l-6 36H57l-6-30-4 30h-8c-9 0-16-6-15-16l4-36c1-8 6-15 14-18l2-22c-5-4-8-10-8-20 0-18 12-33 30-38 4-1 8-2 10-4-4-1-7-5-7-10 0-6 5-12 13-12z"/>${face === "back" ? back : front}</svg>`;
+    <g class="muscle ${cls("traps")}"><path d="M52 46c6-3 12-4 18-4s12 1 18 4c2 3 1 7-2 9-8 2-16 3-24 3s-16-1-24-3c-3-2-4-6-2-9z"/></g>
+    <g class="muscle ${cls("shoulders")}"><path d="M40 54c5-2 10-3 15-1 2 4 1 9-3 11-4 2-10 1-13-2-1-3-1-6 1-8z"/><path d="M100 54c-5-2-10-3-15-1-2 4-1 9 3 11 4 2 10 1 13-2 1-3 1-6-1-8z"/></g>
+    <g class="muscle ${cls("lats")}"><path d="M50 72c5-2 11-2 15 1 3 8 2 18-2 25-5 2-11 1-14-3-2-8-1-16 1-23z"/><path d="M90 72c-5-2-11-2-15 1-3 8-2 18 2 25 5 2 11 1 14-3 2-8 1-16-1-23z"/></g>
+    <g class="muscle ${cls("triceps")}"><path d="M28 76c3-1 6 1 6 4l2 11c1 4-1 7-4 7-2 0-5-2-5-5l-1-11c0-3 0-5 2-6z"/><path d="M112 76c-3-1-6 1-6 4l-2 11c-1 4 1 7 4 7 2 0 5-2 5-5l1-11c0-3 0-5-2-6z"/></g>
+    <g class="muscle ${cls("glutes")}"><path d="M54 116c5-2 11-2 15 1 2 5 1 10-3 13-5 2-11 1-14-2-1-5 0-9 2-12z"/><path d="M86 116c-5-2-11-2-15 1-2 5-1 10 3 13 5 2 11 1 14-2 1-5 0-9-2-12z"/></g>
+    <g class="muscle ${cls("hamstrings")}"><path d="M52 142c4-1 8 0 10 3 1 8 0 17-3 24-3 1-8 0-10-3-1-8 1-17 3-24z"/><path d="M88 142c-4-1-8 0-10 3-1 8 0 17 3 24 3 1 8 0 10-3 1-8-1-17-3-24z"/></g>
+    <g class="muscle ${cls("calves")}"><path d="M52 176c2-1 5 0 6 3l2 10c1 3-1 6-3 6-3 0-5-2-5-5l-1-10c0-2 0-3 1-4z"/><path d="M88 176c-2-1-5 0-6 3l-2 10c-1 3 1 6 3 6 3 0 5-2 5-5l1-10c0-2 0-3-1-4z"/></g>`;
+
+  return `<svg viewBox="0 0 140 210" aria-hidden="true">${face === "back" ? bodyBack : bodyFront}${face === "back" ? back : front}</svg>`;
 }
+
 
 export default function Exercises() {
   const router = useRouter();
