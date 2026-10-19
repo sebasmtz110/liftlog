@@ -351,19 +351,6 @@ export default function Stats() {
     </section>
   );
 }
-  return (
-    <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Volume">
-      <path d={area} fill="rgba(240,55,45,0.12)" />
-      <path d={d} fill="none" stroke="#F0372D" strokeWidth="3" strokeLinejoin="round" />
-      {series.map((p, i) => (
-        <circle key={i} cx={x(i)} cy={y(p.v)} r="3.5" fill="#0A0A0A" stroke="#F0372D" strokeWidth="2" />
-      ))}
-      {series.map((p, i) => (i % step === 0 ? (
-        <text key={`l${i}`} x={x(i)} y={h - 6} textAnchor="middle" fill="#9A9A9A" fontSize="12">{p.label}</text>
-      ) : null))}
-    </svg>
-  );
-}
 function VolumeChart({ series }) {
   if (!series.length) return null;
   const w = 640;
