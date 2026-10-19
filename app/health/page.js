@@ -9,49 +9,37 @@ import Icon from "../components/Icon";
 
 const SEBAS_EMAIL = "sebasmtz110@gmail.com";
 
-function ScoreRing({ score, label, color }) {
-  const size = 120;
-  const stroke = 12;
-  const r = (size - stroke) / 2;
+// Exact copy of SebasFit's ring() function
+function Ring({ pct, color, val }) {
+  const r = 34;
   const c = 2 * Math.PI * r;
-  const p = score == null ? 0 : Math.max(0, Math.min(1, score / 100));
+  const p = Math.max(0, Math.min(1, pct));
   return (
-    <div style={{ textAlign: "center", cursor: "pointer" }}>
-      <div style={{ position: "relative", width: size, height: size, margin: "0 auto" }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#222" strokeWidth={stroke} />
-          <circle
-            cx={size/2} cy={size/2} r={r} fill="none"
-            stroke={color} strokeWidth={stroke} strokeLinecap="round"
-            strokeDasharray={c} strokeDashoffset={c * (1 - p)}
-            transform={`rotate(-90 ${size/2} ${size/2})`}
-          />
-        </svg>
-        <div style={{
-          position: "absolute", inset: 0, display: "flex",
-          alignItems: "center", justifyContent: "center",
-          fontSize: 24, fontWeight: 800, color: "#fff",
-        }}>
-          {score ?? "–"}
-        </div>
-      </div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginTop: 8 }}>{label}</div>
-      <div style={{ fontSize: 12, color: color }}>
-        {score == null ? "Needs data" : score >= 80 ? "Great" : score >= 60 ? "Good" : score >= 40 ? "Fair" : "Low"}
-      </div>
-    </div>
+    <svg viewBox="0 0 84 84" style={{ width: 104, height: 104 }}>
+      <circle cx="42" cy="42" r={r} stroke="rgba(255,255,255,.07)" strokeWidth="9" fill="none" />
+      <circle
+        cx="42" cy="42" r={r} stroke={color} strokeWidth="9" fill="none"
+        strokeLinecap="round" strokeDasharray={`${c * p} ${c}`}
+        strokeOpacity={p > 0 ? 1 : 0}
+        transform="rotate(-90 42 42)"
+      />
+      <text x="42" y="49" textAnchor="middle" style={{ fontSize: 21, fontWeight: 800, fill: "#eef1f5" }}>
+        {val}
+      </text>
+    </svg>
   );
 }
 
-// Simplified sleep score: 50% duration (7.5h goal), 30% consistency (placeholder), 20% interruptions (placeholder)
-// Uses real sleep hours; consistency/interruptions need more history
+function scoreLabel(s) {
+  return s == null ? "No data" : s >= 80 ? "Great" : s >= 60 ? "Good" : s >= 40 ? "Fair" : "Low";
+}
+
 function sleepScore(hours) {
   if (hours == null) return null;
-  const dur = Math.sqrt(Math.min(1, hours / 7.5)); // diminishing returns
+  const dur = Math.sqrt(Math.min(1, hours / 7.5));
   return Math.round(dur * 100);
 }
 
-// Simplified recovery: based on HRV and resting HR vs their 7-day averages
 function recoveryScore(today, week) {
   const hrvs = week.map(d => d.hrv).filter(v => v != null);
   const rhrs = week.map(d => d.resting_hr).filter(v => v != null);
@@ -62,23 +50,6 @@ function recoveryScore(today, week) {
   const rhrDiff = today.resting_hr - avgRhr;
   const rhrScore = Math.max(0, Math.min(1, 0.75 - (rhrDiff > 0 ? rhrDiff * 0.1 : rhrDiff * 0.05)));
   return Math.round((hrvScore * 0.6 + rhrScore * 0.4) * 100);
-}
-
-function Tile({ icon, value, unit, label, color }) {
-  return (
-    <div style={{
-      background: "#111", borderRadius: 16, padding: "16px 12px",
-      textAlign: "center",
-    }}>
-      <div style={{ color, marginBottom: 6, display: "flex", justifyContent: "center" }}>
-        <Icon name={icon} />
-      </div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>
-        {value}<span style={{ fontSize: 13, fontWeight: 400, color: "#888" }}> {unit}</span>
-      </div>
-      <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>{label}</div>
-    </div>
-  );
 }
 
 export default function Health() {
@@ -114,48 +85,80 @@ export default function Health() {
   const sleep = sleepScore(today.sleep_hours);
   const recovery = recoveryScore(today, week);
 
+  // SebasFit tile helper - exact structure
+  const tiles = [
+    { icon: "heart", val: today.resting_hr ?? "–", unit: "bpm", label: "Resting HR today", color: "#f87171" },
+    { icon: "workouts", val: (today.steps ?? 0).toLocaleString(), unit: "", label: "Steps today", color: "#9aa3ae" },
+    { icon: "clock", val: today.sleep_hours != null ? (+today.sleep_hours).toFixed(1) : "–", unit: "h", label: "Sleep last night", color: "#a78bfa" },
+    { icon: "progress", val: today.active_kcal ?? "–", unit: "kcal", label: "Active energy", color: "#d92d20" },
+  ];
+
   return (
-    <section className="screen" data-screen="health" style={{ background: "#000", minHeight: "100vh" }}>
+    <section className="screen" data-screen="health" style={{ background: "#0d0f12", minHeight: "100vh", color: "#eef1f5" }}>
       <ConfigBanner />
-      <div className="pad" style={{ paddingTop: 20 }}>
-        <h1 style={{ color: "#fff", fontSize: 32, fontWeight: 800, margin: "0 0 4px" }}>Health</h1>
-        <p style={{ color: "#888", fontSize: 14, margin: "0 0 20px" }}>Apple Watch data</p>
+      <div style={{ padding: "20px 16px 100px" }}>
+        <h1 style={{ fontSize: 32, fontWeight: 800, margin: "0 0 2px", color: "#eef1f5" }}>Health</h1>
+        <p style={{ color: "#9aa3ae", fontSize: 15, margin: "0 0 12px" }}>Apple Watch data</p>
 
         {loading ? (
-          <p className="loading" style={{ color: "#888" }}>Loading…</p>
+          <p style={{ color: "#9aa3ae" }}>Loading…</p>
         ) : !data ? (
-          <div style={{ textAlign: "center", padding: "40px 20px", color: "#888" }}>
-            <Icon name="heart" />
-            <p style={{ color: "#fff", fontWeight: 600 }}>No Watch data yet</p>
-            <p style={{ fontSize: 14 }}>Your Watch stats will appear here automatically.</p>
+          <div style={{ background: "#171a1f", border: "1px solid #2a2f37", borderRadius: 16, padding: 14, margin: "10px 0", textAlign: "center" }}>
+            <p style={{ color: "#eef1f5", fontWeight: 600 }}>No Watch data yet</p>
+            <p style={{ color: "#9aa3ae", fontSize: 15 }}>Your Watch stats will appear here automatically.</p>
           </div>
         ) : (
           <>
-            <div style={{ display: "flex", justifyContent: "center", gap: 32, marginBottom: 24 }}>
-              <ScoreRing score={sleep} label="Sleep score" color="#a78bfa" />
-              <ScoreRing score={recovery} label="Recovery score" color="#d92d20" />
+            {/* Rings - exact SebasFit .rings.rings2 */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+              {[
+                { score: sleep, label: "Sleep score", color: "#a78bfa" },
+                { score: recovery, label: "Recovery score", color: "#d92d20" },
+              ].map((r) => (
+                <div key={r.label} style={{
+                  background: "#171a1f", border: "1px solid #2a2f37",
+                  borderRadius: 26, padding: "16px 6px 14px", textAlign: "center",
+                }}>
+                  <Ring pct={(r.score || 0) / 100} color={r.color} val={r.score ?? "–"} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#eef1f5", opacity: 0.85, marginTop: 4 }}>{r.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: r.score == null ? "#9aa3ae" : r.color }}>
+                    {r.score == null ? "Needs data" : scoreLabel(r.score)}
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-              <Tile icon="heart" value={today.resting_hr ?? "–"} unit="bpm" label="Resting HR today" color="#d92d20" />
-              <Tile icon="workouts" value={(today.steps ?? 0).toLocaleString()} unit="" label="Steps today" color="#888" />
-              <Tile icon="clock" value={today.sleep_hours ?? "–"} unit="h" label="Sleep last night" color="#a78bfa" />
-              <Tile icon="progress" value={today.active_kcal ?? "–"} unit="kcal" label="Active energy" color="#d92d20" />
+            {/* Tiles - exact SebasFit .tiles */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: "12px 0" }}>
+              {tiles.map((t) => (
+                <div key={t.label} style={{
+                  background: "#171a1f", border: "1px solid #2a2f37",
+                  borderRadius: 16, padding: 16,
+                }}>
+                  <div style={{ color: t.color, width: 22, height: 22 }}>
+                    <Icon name={t.icon} />
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", marginTop: 8, color: "#eef1f5" }}>
+                    {t.val}<span style={{ fontSize: 13, color: "#9aa3ae", fontWeight: 600 }}> {t.unit}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "#9aa3ae", marginTop: 2 }}>{t.label}</div>
+                </div>
+              ))}
             </div>
 
+            {/* Recent days */}
             {week.length > 1 && (
-              <div style={{ background: "#111", borderRadius: 16, padding: "16px" }}>
-                <h3 style={{ color: "#fff", fontSize: 15, fontWeight: 700, margin: "0 0 12px" }}>Recent days</h3>
+              <div style={{ background: "#171a1f", border: "1px solid #2a2f37", borderRadius: 16, padding: 14, margin: "10px 0" }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 8px", color: "#eef1f5" }}>Recent days</h3>
                 {week.slice(1, 8).map((d) => (
                   <div key={d.date} style={{
                     display: "flex", justifyContent: "space-between",
-                    padding: "8px 0", borderTop: "1px solid #222",
-                    fontSize: 14,
+                    padding: "8px 0", borderTop: "1px solid #2a2f37", fontSize: 14,
                   }}>
-                    <span style={{ color: "#fff" }}>
+                    <span style={{ color: "#eef1f5" }}>
                       {new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                     </span>
-                    <span style={{ color: "#888" }}>
+                    <span style={{ color: "#9aa3ae" }}>
                       {(d.steps ?? 0).toLocaleString()} steps
                       {d.sleep_hours ? ` · ${d.sleep_hours}h sleep` : ""}
                     </span>
