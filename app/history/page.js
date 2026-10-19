@@ -79,12 +79,15 @@ function HistoryInner() {
     const groups = new Map();
     for (const s of [...(open.sets ?? [])].sort((a, b) => a.set_number - b.set_number)) {
       if (!groups.has(s.exercise_id)) {
-        groups.set(s.exercise_id, { name: s.exercises?.name ?? "Exercise", sets: [] });
+        groups.set(s.exercise_id, { name: s.exercises?.name ?? "Exercise", muscle: s.exercises?.muscle_group ?? "", sets: [] });
       }
       groups.get(s.exercise_id).sets.push(s);
     }
     const volume = (open.sets ?? []).reduce((sum, s) => sum + (s.reps ?? 0) * Number(s.weight ?? 0), 0);
     const mins = minutesBetween(open.started_at, open.ended_at);
+    const totalSets = (open.sets ?? []).length;
+    const when = new Date(open.started_at);
+    const dateStr = when.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
     return (
       <section className="screen" data-screen="history-detail">
         <header className="subhead">
@@ -108,49 +111,92 @@ function HistoryInner() {
           )}
         </header>
         <div className="pad">
-          <p className="note">
-            {new Date(open.started_at).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
-            {" · "}{mins} min · {Math.round(volume).toLocaleString()} lb
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: "4px 0 2px" }}>{dateStr}</h2>
+          <p className="note" style={{ marginBottom: 16 }}>
+            {when.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
           </p>
-          {[...groups.values()].map((g) => (
-            <div className="day-line" key={g.name}>
-              <strong>{g.name}</strong>
-              {!editing ? (
-                <span>{g.sets.map((s) => `${s.weight} lb × ${s.reps}`).join("  ·  ")}</span>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-                  {g.sets.map((s, idx) => (
-                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 13, minWidth: 44 }}>Set {idx + 1}</span>
-                      <input
-                        type="number"
-                        value={editSets[s.id]?.weight ?? ""}
-                        onChange={(e) => setEditSets((m) => ({ ...m, [s.id]: { ...m[s.id], weight: e.target.value } }))}
-                        placeholder="lb"
-                        style={{ width: 70, padding: "6px 8px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14 }}
-                      />
-                      <span style={{ fontSize: 13 }}>lb ×</span>
-                      <input
-                        type="number"
-                        value={editSets[s.id]?.reps ?? ""}
-                        onChange={(e) => setEditSets((m) => ({ ...m, [s.id]: { ...m[s.id], reps: e.target.value } }))}
-                        placeholder="reps"
-                        style={{ width: 60, padding: "6px 8px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14 }}
-                      />
-                      <span style={{ fontSize: 13 }}>reps</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+
+          {/* Stat cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <div style={{ background: "#111", borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{mins}</div>
+              <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>min</div>
             </div>
-          ))}
+            <div style={{ background: "#111", borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{Math.round(volume).toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>lb volume</div>
+            </div>
+            <div style={{ background: "#d92d20", borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{totalSets}</div>
+              <div style={{ fontSize: 11, color: "#ffd9d6", marginTop: 2 }}>sets</div>
+            </div>
+          </div>
+
+          {/* Exercise cards */}
+          {[...groups.values()].map((g) => {
+            const exVol = g.sets.reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0);
+            const best = g.sets.reduce((b, x) => Math.max(b, Number(x.weight) || 0), 0);
+            return (
+              <div key={g.name} style={{ background: "#fff", border: "1px solid #eee", borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                  <img src={thumbFor(g.name)} alt="" style={{ width: 48, height: 48, borderRadius: 12, objectFit: "cover", background: "#f4f4f4" }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700 }}>{g.name}</div>
+                    <div style={{ fontSize: 12, color: "#888" }}>
+                      {g.sets.length} sets · {Math.round(exVol).toLocaleString()} lb
+                      {best > 0 && ` · top ${best} lb`}
+                    </div>
+                  </div>
+                </div>
+                {!editing ? (
+                  <div>
+                    {g.sets.map((s, idx) => (
+                      <div key={s.id} style={{ display: "flex", alignItems: "center", padding: "7px 0", borderTop: idx > 0 ? "1px solid #f2f2f2" : "none" }}>
+                        <span style={{ width: 52, height: 26, borderRadius: 8, background: "#f4f4f4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#555" }}>
+                          {idx + 1}
+                        </span>
+                        <span style={{ flex: 1, textAlign: "center", fontSize: 15, fontWeight: 600 }}>{s.weight} <span style={{ fontWeight: 400, color: "#888", fontSize: 12 }}>lb</span></span>
+                        <span style={{ color: "#ccc", fontSize: 14 }}>×</span>
+                        <span style={{ flex: 1, textAlign: "center", fontSize: 15, fontWeight: 600 }}>{s.reps} <span style={{ fontWeight: 400, color: "#888", fontSize: 12 }}>reps</span></span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {g.sets.map((s, idx) => (
+                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 13, minWidth: 44, fontWeight: 600 }}>{idx + 1}</span>
+                        <input
+                          type="number"
+                          value={editSets[s.id]?.weight ?? ""}
+                          onChange={(e) => setEditSets((m) => ({ ...m, [s.id]: { ...m[s.id], weight: e.target.value } }))}
+                          placeholder="lb"
+                          style={{ width: 70, padding: "8px", borderRadius: 10, border: "1px solid #ddd", fontSize: 15 }}
+                        />
+                        <span style={{ fontSize: 13, color: "#888" }}>lb ×</span>
+                        <input
+                          type="number"
+                          value={editSets[s.id]?.reps ?? ""}
+                          onChange={(e) => setEditSets((m) => ({ ...m, [s.id]: { ...m[s.id], reps: e.target.value } }))}
+                          placeholder="reps"
+                          style={{ width: 64, padding: "8px", borderRadius: 10, border: "1px solid #ddd", fontSize: 15 }}
+                        />
+                        <span style={{ fontSize: 13, color: "#888" }}>reps</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {groups.size === 0 && <p className="empty">No sets were logged.</p>}
           {!editing && (
             <button
               type="button"
               onClick={deleteWorkout}
               style={{
-                marginTop: 24,
+                marginTop: 8,
+                marginBottom: 24,
                 width: "100%",
                 padding: "14px",
                 borderRadius: 12,
