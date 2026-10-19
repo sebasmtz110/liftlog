@@ -22,6 +22,7 @@ function muscleMarkup(ex) {
 
 
 
+
 export default function Exercises() {
   const router = useRouter();
   const { user } = useAuth();
