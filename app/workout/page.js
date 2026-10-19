@@ -349,7 +349,7 @@ export default function Workout() {
       {/* Template editor sheet (picker is a view inside, not a second overlay) */}
       {editor && (
         <div className="sheet-backdrop" onClick={() => { setEditor(null); setPickerOpen(false); setQuery(""); }}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label="Edit workout"
+          <div className="sheet-light" role="dialog" aria-modal="true" aria-label="Edit workout"
             onClick={(e) => e.stopPropagation()}>
             <div className="grabber" />
             {!pickerOpen ? (
