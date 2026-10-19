@@ -202,14 +202,15 @@ export default function Quiz({ userId, onDone }) {
             </button>
             <div style={{ height: 16 }} />
             <p style={{ textAlign: "center", color: "#8B948F", fontSize: 13 }}>
-              You can customize everything after — days, workouts, exercises.
+              You can always change your split later in the app — nothing here is permanent.
             </p>
           </>
         )}
 
         {step === "browse" && (
           <>
-            <h2 style={{ fontSize: 22, fontWeight: 800, margin: "8px 0 16px" }}>Pick a split</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 800, margin: "8px 0 4px" }}>Pick a split</h2>
+            <p style={{ color: "#69746F", fontSize: 14, margin: "0 0 16px" }}>You can always change it later in the app.</p>
             {PRESET_ORDER.map((key) => (
               <button key={key} style={choiceStyle(key === recommended)}
                 onClick={() => { setPresetKey(key); setStep("recommend"); }}>
