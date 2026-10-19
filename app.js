@@ -158,9 +158,10 @@ const DETAIL_TABS = ["Instructions", "Sets & Reps", "Tips"];
 const IMMERSIVE = new Set(["workout", "rest", "log", "complete", "motion"]);
 const TONE = { workout: "workout", rest: "workout", log: "workout", motion: "workout", progress: "progress" };
 const TAB_FOR = {
-  home: "home", history: "workouts", "history-detail": "workouts", template: "workouts", templates: "workouts",
-  progress: "progress", library: "library", detail: "library",
-  profile: "more", programs: "more", program: "more", settings: "more", help: "more"
+  home: "home", templates: "workouts", template: "workouts",
+  library: "library", detail: "library",
+  progress: "progress",
+  history: "history", "history-detail": "history"
 };
 
 const byId = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
@@ -545,9 +546,71 @@ function filteredExercises() {
   });
 }
 
+function isoDay(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function hoursText(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (!h) return `${m}m`;
+  if (!m) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+function entryThumb(entry) {
+  const t = entry.items ? entry : templateById(entry.templateId);
+  const id = t?.items?.[0]?.[0];
+  return id && byId[id] ? byId[id].thumb : "assets/thumb-bench.jpg";
+}
 function paintHome() {
-  document.getElementById("start-label").textContent = state.session ? "Resume Workout" : "Start Workout";
-  document.getElementById("home-volume").textContent = volumeText(12480);
+  const today = templateById("upper-body");
+  const live = state.session;
+  document.getElementById("start-label").textContent = live ? "Resume Workout" : "Start Workout";
+  document.getElementById("feature-name").textContent = live ? live.name : today.name;
+  document.getElementById("feature-meta").textContent = live
+    ? `${live.exercises.length} exercises · in progress`
+    : `${today.items.length} exercises · ${today.minutes} min · ${today.focus}`;
+
+  const items = historyItems()
+    .map((h) => ({ ...h, volume: estimateVolume(h) }))
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const latest = items[0] ? new Date(`${items[0].date}T12:00:00`) : new Date();
+  const monday = new Date(latest);
+  monday.setDate(latest.getDate() - ((latest.getDay() + 6) % 7));
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const key = isoDay(d);
+    const hits = items.filter((h) => h.date === key);
+    return {
+      volume: hits.reduce((sum, h) => sum + h.volume, 0),
+      minutes: hits.reduce((sum, h) => sum + (h.minutes || 0), 0),
+      count: hits.length
+    };
+  });
+  const done = week.reduce((sum, d) => sum + d.count, 0);
+  const goal = parseInt(PROGRAMS[0].days, 10) || done;
+  const max = Math.max(...week.map((d) => d.volume), 1);
+  document.getElementById("week-score").textContent = `${done}/${goal} workouts`;
+  document.getElementById("week-bars").innerHTML = week.map((d) =>
+    `<span class="${d.count ? "" : "is-rest"}" style="--h:${d.volume ? Math.max(28, Math.round((d.volume / max) * 100)) : 22}%"></span>`).join("");
+  const mins = week.reduce((sum, d) => sum + d.minutes, 0);
+  document.getElementById("home-volume").textContent = volumeText(week.reduce((sum, d) => sum + d.volume, 0));
+  document.getElementById("home-time").textContent = hoursText(mins);
+  document.getElementById("home-cal").textContent = comma(Math.round(mins * 11.5));
+
+  const plan = PROGRAMS[0].plan;
+  const at = Math.max(0, plan.findIndex(([, name]) => name === items[0]?.name));
+  const [dayLabel, nextName] = plan[(at + 1) % plan.length];
+  const next = TEMPLATES.find((t) => t.name === nextName) || TEMPLATES[0];
+  document.getElementById("next-up").innerHTML = `<button class="act-row" type="button" data-go="template" data-id="${esc(next.id)}">
+    <img class="thumb" src="${entryThumb(next)}" alt=""><span class="link-copy"><strong>${esc(next.name)}</strong><small>${esc(dayLabel)} · ${next.items.length} exercises · ${next.minutes} min</small></span>
+    <svg class="icon"><use href="#i-chevron"/></svg></button>`;
+
+  const recent = items.slice(0, 4);
+  document.getElementById("recent-list").innerHTML = recent.length ? recent.map((h) => `<button class="act-row" type="button" data-go="history-detail" data-id="${esc(h.id)}">
+    <img class="thumb" src="${entryThumb(h)}" alt=""><span class="link-copy"><strong>${esc(h.name)}</strong><small>${formatDate(h.date)}</small></span>
+    <span class="act-meta"><span><svg class="icon"><use href="#i-clock"/></svg>${h.minutes} min</span><span><svg class="icon"><use href="#i-workouts"/></svg>${volumeText(h.volume)}</span></span>
+    <svg class="icon chev"><use href="#i-chevron"/></svg></button>`).join("") : `<p class="empty">No workouts yet</p>`;
 }
 function paintLibrary() {
   document.getElementById("library-search").value = state.libraryQuery;
