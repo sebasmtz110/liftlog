@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# design extras that are not the app
+training-ui.zip
+assets/c693e5db-*.png
