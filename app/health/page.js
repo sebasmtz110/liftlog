@@ -9,6 +9,21 @@ import Icon from "../components/Icon";
 
 const SEBAS_EMAIL = "sebasmtz110@gmail.com";
 
+function StatCard({ icon, value, label, accent }) {
+  return (
+    <div style={{
+      background: accent ? "#d92d20" : "#111",
+      borderRadius: 16,
+      padding: "16px 8px",
+      textAlign: "center",
+    }}>
+      {icon && <div style={{ marginBottom: 4, color: accent ? "#fff" : "#d92d20" }}><Icon name={icon} /></div>}
+      <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{value}</div>
+      <div style={{ fontSize: 11, color: accent ? "#ffd9d6" : "#888", marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
 export default function Health() {
   const router = useRouter();
   const { user } = useAuth();
@@ -29,7 +44,7 @@ export default function Health() {
         .from("health_data")
         .select("*")
         .order("date", { ascending: false })
-        .limit(7);
+        .limit(8);
       if (health && health.length > 0) setData(health);
       setLoading(false);
     })();
@@ -38,6 +53,7 @@ export default function Health() {
   if (user && user.email !== SEBAS_EMAIL) return null;
 
   const today = data?.[0] ?? {};
+  const week = (data ?? []).slice(1);
 
   return (
     <section className="screen" data-screen="health">
@@ -52,44 +68,33 @@ export default function Health() {
         <div className="empty">
           <Icon name="heart" />
           <p>No health data yet</p>
-          <p className="note">Connect your Apple Watch to start syncing.</p>
+          <p className="note">Your Apple Watch stats will appear here.</p>
         </div>
       ) : (
         <div className="pad">
-          <div className="health-grid">
-            <div className="health-card">
-              <Icon name="heart" />
-              <strong>{today.resting_hr ?? "–"}</strong>
-              <span>Resting HR</span>
-            </div>
-            <div className="health-card">
-              <strong>{today.steps?.toLocaleString() ?? "–"}</strong>
-              <span>Steps</span>
-            </div>
-            <div className="health-card">
-              <strong>{today.active_kcal ?? "–"}</strong>
-              <span>Active kcal</span>
-            </div>
-            <div className="health-card">
-              <strong>{today.sleep_hours ?? "–"}</strong>
-              <span>Sleep (hrs)</span>
-            </div>
-            <div className="health-card">
-              <strong>{today.workouts ?? "–"}</strong>
-              <span>Workouts</span>
-            </div>
-            <div className="health-card">
-              <strong>{today.hrv ?? "–"}</strong>
-              <span>HRV (ms)</span>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <StatCard icon="heart" value={today.resting_hr ?? "–"} label="Resting HR" />
+            <StatCard value={(today.steps ?? 0).toLocaleString()} label="Steps" />
+            <StatCard value={today.active_kcal ?? "–"} label="Active kcal" />
+            <StatCard value={today.sleep_hours ?? "–"} label="Sleep (hrs)" />
+            <StatCard value={today.workouts ?? 0} label="Workouts" accent />
+            <StatCard value={today.hrv ?? "–"} label="HRV (ms)" />
           </div>
-          {data.length > 1 && (
+          {week.length > 0 && (
             <>
-              <h2 style={{ marginTop: 24, marginBottom: 12 }}>This Week</h2>
-              {data.slice(1).map((d) => (
-                <div className="day-line" key={d.date}>
-                  <strong>{new Date(d.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</strong>
-                  <span>{d.steps?.toLocaleString() ?? "–"} steps · {d.active_kcal ?? "–"} kcal</span>
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: "4px 0 12px" }}>This Week</h2>
+              {week.map((d) => (
+                <div key={d.date} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "12px 0", borderTop: "1px solid #f0f0f0",
+                }}>
+                  <strong style={{ fontSize: 15 }}>
+                    {new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                  </strong>
+                  <span style={{ fontSize: 14, color: "#555" }}>
+                    {(d.steps ?? 0).toLocaleString()} steps · {d.active_kcal ?? "–"} kcal
+                    {d.sleep_hours ? ` · ${d.sleep_hours}h sleep` : ""}
+                  </span>
                 </div>
               ))}
             </>
