@@ -9,6 +9,7 @@ import ConfigBanner from "./components/ConfigBanner";
 import Icon from "./components/Icon";
 import { useAuth } from "./components/AuthContext";
 import { getProfilePhoto } from "../lib/profilePhoto";
+import { HERO_SRC } from "../lib/heroImage";
 
 const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const todayIdx = () => (new Date().getDay() + 6) % 7;
@@ -249,7 +250,7 @@ export default function Home() {
         </header>
 
         <article className="feature">
-          <img src="/assets/hero-skyline.jpg" alt="Sebas at the window before training, city beyond the glass" data-muse-slot="hero-still" />
+          <img src={HERO_SRC} alt="Sebas at the window before training, city beyond the glass" data-muse-slot="hero-still" />
           <div className="feature-scrim" />
           <div className="feature-copy">
             <p className="kicker">Today&apos;s Workout</p>
