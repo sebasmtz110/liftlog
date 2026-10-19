@@ -24,7 +24,7 @@ function SplitPreview({ built }) {
     <div className="card" style={{ padding: "6px 16px" }}>
       {built.days.map((d) => (
         <div key={d.day_index} className="split-day-row">
-          <span className={`split-day-name${d.is_rest ? " rest" : ""}`}>{DAY_NAMES[d.day_index]}</span>
+          <span className={`split-day-name${d.is_rest ? " is-rest" : ""}`}>{DAY_NAMES[d.day_index]}</span>
           <div className="split-day-info">
             <p className="headline">{d.label}</p>
             {!d.is_rest && d.muscle_targets && <p className="footnote">{d.muscle_targets}</p>}

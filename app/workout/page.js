@@ -292,10 +292,10 @@ export default function Workout() {
             )}
           </div>
         ) : (
-          <div className="card" style={{ padding: "6px 16px" }}>
+          <div>
             {split.days.map((d) => (
               <div key={d.id} className="split-day-row">
-                <span className={`split-day-name${d.is_rest ? " rest" : ""}`}>{DAY_NAMES[d.day_index]}</span>
+                <span className={`split-day-name${d.is_rest ? " is-rest" : ""}`}>{DAY_NAMES[d.day_index]}</span>
                 <div className="split-day-info">
                   <p className="headline">{d.label}</p>
                   {!d.is_rest && d.muscle_targets && <p className="footnote">{d.muscle_targets}</p>}
@@ -319,20 +319,14 @@ export default function Workout() {
         {templates.map((t) => (
           <div key={t.id} className="template-card">
             <div className="template-head">
-              <h3 className="title-2" style={{ margin: 0 }}>{t.name}</h3>
-              <button className="btn btn-plain" style={{ fontSize: 14 }} onClick={() => openEditor(t)}>Edit</button>
+              <h3>{t.name}</h3>
+              <button className="btn btn-plain" type="button" onClick={() => openEditor(t)}>Edit</button>
             </div>
             <p className="footnote">
               {(t.template_exercises ?? []).length} exercises
               {t.est_minutes ? ` · ~${t.est_minutes} min` : ""}
+              {muscleChips(t).length ? ` · ${muscleChips(t).join(" · ")}` : ""}
             </p>
-            <div className="spacer-8" />
-            <div className="chip-row">
-              {muscleChips(t).map((m) => (
-                <span key={m} className={`muscle-tag ${muscleTagClass(m)}`}>{m}</span>
-              ))}
-            </div>
-            <div className="spacer-8" />
             {(t.template_exercises ?? [])
               .slice()
               .sort((a, b) => a.sort_order - b.sort_order)
