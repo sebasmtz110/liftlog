@@ -198,247 +198,130 @@ export default function Stats() {
     });
   }, [workouts, range, now]);
 
+  // Strava-style: weekly goal ring (workouts this week vs 5 goal)
+  const weekWorkouts = model?.inRange?.length ?? 0;
+  const goalPct = Math.min(100, Math.round((weekWorkouts / 5) * 100));
+  const circ = 2 * Math.PI * 32;
+  const off = circ * (1 - goalPct / 100);
+
   return (
     <section className="screen screen-progress" data-screen="progress">
       <ConfigBanner />
-      <header className="page-head dark-head">
-        <h1>Progress</h1>
-        <span />
-      </header>
+      {/* Small hero */}
+      <div style={{ position: "relative", height: 160, overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #1a1a1a, #2d2d2d)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,.7), transparent 60%)" }} />
+        <div style={{ position: "absolute", left: 20, bottom: 14, color: "#fff" }}>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-.02em" }}>Progress</h1>
+          <p style={{ margin: "2px 0 0", fontSize: 13, opacity: .8 }}>
+            {range === "month" ? "This month" : "This week"} · {model?.inRange?.length ?? 0} workouts
+          </p>
+        </div>
+      </div>
 
       <div className="screen-body">
         {loading || !model ? (
           <p className="loading">Loading…</p>
         ) : (
           <>
-            <div className="chips dark-chips" id="progress-tabs" role="tablist">
+            <div className="chips dark-chips" role="tablist" style={{ margin: "12px 16px 0" }}>
               {RANGES.filter((r) => r.id !== "year").map((r) => (
                 <button key={r.id} type="button" className={range === r.id ? "is-on" : ""} onClick={() => setRange(r.id)}>
                   {r.id === "week" ? "Week" : "Month"}
                 </button>
               ))}
             </div>
-            <div className="pad">
-            <div className="chart-card">
-              <div className="chart-head"><h2>Volume</h2><span style={{ color: "#9A9A9A", fontSize: 13 }}>{range === "month" ? "This month" : "This week"}</span></div>
+
+            {/* Goal ring */}
+            <div className="card" style={{ margin: "12px 16px 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ width: 76, height: 76, position: "relative", flex: "none" }}>
+                  <svg width="76" height="76" viewBox="0 0 76 76" style={{ transform: "rotate(-90deg)", display: "block" }}>
+                    <circle cx="38" cy="38" r="32" fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="7" />
+                    <circle cx="38" cy="38" r="32" fill="none" stroke="#F0372D" strokeWidth="7" strokeLinecap="round"
+                      strokeDasharray={circ.toFixed(0)} strokeDashoffset={off.toFixed(0)} />
+                  </svg>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16 }}>
+                    {goalPct}%
+                  </div>
+                </div>
+                <div>
+                  <p className="headline" style={{ margin: 0 }}>Weekly goal</p>
+                  <p className="footnote" style={{ margin: "4px 0 0" }}>{weekWorkouts} of 5 workouts</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display: "flex", gap: 12, margin: "12px 16px 0" }}>
+              <div className="card" style={{ flex: 1, margin: 0, textAlign: "center", padding: "14px 8px" }}>
+                <p className="stat-value" style={{ fontSize: 22 }}>{model.inRange.length}</p>
+                <p className="stat-label">Workouts</p>
+              </div>
+              <div className="card" style={{ flex: 1, margin: 0, textAlign: "center", padding: "14px 8px" }}>
+                <p className="stat-value" style={{ fontSize: 22 }}>
+                  {model.volume >= 1000 ? `${(model.volume / 1000).toFixed(1).replace(/\.0$/, "")}k` : Math.round(model.volume)}
+                </p>
+                <p className="stat-label">Volume lb</p>
+              </div>
+              <div className="card" style={{ flex: 1, margin: 0, textAlign: "center", padding: "14px 8px" }}>
+                <p className="stat-value" style={{ fontSize: 22 }}>{model.prs.length}</p>
+                <p className="stat-label">PRs</p>
+              </div>
+            </div>
+
+            {/* Volume chart */}
+            <div className="card" style={{ margin: "12px 16px 0" }}>
+              <div className="chart-head"><h2>Volume</h2></div>
               <VolumeChart series={volumeSeries} />
             </div>
 
-            <div className="stat-grid-3">
-              <div className="stat-card">
-                <p className="stat-kicker">Workouts</p>
-                <p className="stat-value">{model.inRange.length}</p>
-                <p className="stat-label">{range}</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-kicker">Volume</p>
-                <p className="stat-value">
-                  {model.volume >= 1000 ? `${(model.volume / 1000).toFixed(1).replace(/\.0$/, "")}k` : Math.round(model.volume)}
-                </p>
-                <p className="stat-label">lb lifted</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-kicker">PRs</p>
-                <p className="stat-value">{model.prs.length}</p>
-                <p className="stat-label">{range}</p>
-              </div>
-            </div>
-
-            <div className="spacer-16" />
-            {model.topEx && (
-              <div className="card">
-                <p className="headline">{model.topEx}</p>
-                {model.trendSets.length >= 2 ? (
-                  model.trendSets.map((s, i) => (
-                    <p key={i} className="footnote">
-                      {new Date(s.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                      {" — "}{s.weight} lb × {s.reps}
-                    </p>
-                  ))
-                ) : (
-                  <p className="footnote">Log more sessions to see the trend.</p>
-                )}
-              </div>
-            )}
-
-            <div className="spacer-16" />
-            <h2 className="section-title">Volume by muscle</h2>
-            <div className="card" style={{ padding: "6px 16px" }}>
-              <p className="footnote" style={{ paddingTop: 8 }}>10–20 hard sets per week is the productive range.</p>
-              {Object.entries(model.muscleSets)
-                .sort((a, b) => b[1] - a[1])
-                .map(([muscle, n]) => (
-                  <div key={muscle} className="vol-row">
-                    <div className="vol-top">
-                      <span className="headline">
-                        {muscle}
-                        {n >= 10 && <span className="vol-badge">Building</span>}
-                      </span>
-                      <span className="footnote">{n} / 20</span>
-                    </div>
-                    <div className="vol-bar">
-                      <div className="vol-fill" style={{ width: `${Math.min(100, (n / 20) * 100)}%` }} />
-                    </div>
-                  </div>
-                ))}
-              {Object.keys(model.muscleSets).length === 0 && (
-                <p className="footnote" style={{ padding: "8px 0" }}>No sets logged in this range yet.</p>
-              )}
-            </div>
-
-            {/* Body — weight log + progress photos, like SebasFit */}
-            <div className="spacer-16" />
-            <h2 className="section-title">Body</h2>
-            <div className="card bw-card">
-              <div className="bw-row">
-                <div>
-                  <p className="kicker">BODY WEIGHT · LB</p>
-                  <div className="spacer-8" />
-                  {bwLatest ? (
-                    <>
-                      <p className="bw-latest">
-                        {bwLatest.weight_lb}
-                        <small> lb</small>
-                      </p>
-                      <p className="footnote">
-                        Latest ·{" "}
-                        {new Date(bwLatest.logged_at).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                        {bwAvg !== null && (
-                          <>
-                            {" "}· 7-day avg <strong>{bwAvg.toFixed(1)}</strong>
-                            {bwDelta !== null && bwDelta !== 0 && (
-                              <span style={{ color: bwDelta > 0 ? "var(--pink)" : "var(--green)" }}>
-                                {" "}
-                                {bwDelta > 0 ? "↑" : "↓"} {Math.abs(bwDelta).toFixed(1)}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="headline">No weights yet</p>
-                      <p className="footnote">Nothing logged yet — never invented.</p>
-                    </>
-                  )}
-                </div>
-                <button className="btn btn-filled" onClick={() => setBwSheet({ id: null, value: "" })}>
-                  Log
-                </button>
-              </div>
-            </div>
-
-            {weights.length > 0 && (
-              <div className="card" style={{ marginTop: 12 }}>
-                <div className="quiz-head-row">
-                  <p className="headline">History</p>
-                  <p className="footnote">
-                    {weights.length} {weights.length === 1 ? "entry" : "entries"}
+            {/* PRs */}
+            {model.prs.length > 0 && (
+              <div className="card" style={{ margin: "12px 16px 0" }}>
+                <p className="headline" style={{ marginBottom: 8 }}>🏆 Personal records</p>
+                {model.prs.slice(0, 3).map(([name, b], i) => (
+                  <p key={i} className="footnote" style={{ margin: "6px 0" }}>
+                    <strong>{name}</strong> · {b.weight} lb
                   </p>
-                </div>
-                {weights.slice(0, 20).map((w) => (
-                  <div key={w.id} className="bw-hist-row">
-                    <div>
-                      <p className="headline">{w.weight_lb} lb</p>
-                      <p className="footnote">
-                        {new Date(w.logged_at).toLocaleDateString(undefined, {
-                          weekday: "short",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </p>
-                    </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        className="btn btn-gray"
-                        style={{ padding: "8px 12px", fontSize: 13 }}
-                        onClick={() => setBwSheet({ id: w.id, value: String(w.weight_lb) })}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-gray"
-                        style={{ padding: "8px 12px", fontSize: 13, color: "var(--danger)" }}
-                        onClick={() => deleteWeight(w.id)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
                 ))}
               </div>
             )}
 
-            <div className="spacer-16" />
-            <h2 className="section-title">Progress photos</h2>
-            <div className="card">
-              <p className="footnote">Private on this device only — never uploaded.</p>
-              <div className="spacer-12" />
-              <button className="btn btn-filled" onClick={() => fileRef.current?.click()}>
-                Add photo
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={onPhotoFile}
-              />
-              {photos.length > 0 && (
-                <div className="photo-grid">
-                  {photos.map((p) => (
-                    <div key={p.id}>
-                      <div className="photo-item">
-                        <img src={p.url} alt="Progress" />
-                        <button
-                          className="photo-del"
-                          aria-label="Delete photo"
-                          onClick={() => setConfirmPhotoDel(p.id)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                      <p className="photo-date">
-                        {new Date(p.t).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                      </p>
-                    </div>
-                  ))}
+            {/* Recent workouts feed */}
+            <h2 className="section-title" style={{ margin: "20px 16px 0" }}>Recent</h2>
+            {model.inRange.slice(0, 4).map((w) => {
+              const wvol = (w.sets ?? []).reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0);
+              return (
+                <div key={w.id} className="card" style={{ margin: "12px 16px 0" }}>
+                  <p className="footnote">{new Date(w.started_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</p>
+                  <p className="headline" style={{ margin: "4px 0" }}>{w.notes?.replace("Imported from SebasFit: ", "") || "Workout"}</p>
+                  <div style={{ display: "flex", gap: 20, marginTop: 8 }}>
+                    <div><p className="stat-value" style={{ fontSize: 17 }}>{wvol >= 1000 ? `${(wvol/1000).toFixed(1)}k` : Math.round(wvol)}</p><p className="stat-label">Volume</p></div>
+                    <div><p className="stat-value" style={{ fontSize: 17 }}>{(w.sets ?? []).length}</p><p className="stat-label">Sets</p></div>
+                  </div>
                 </div>
-              )}
-            </div>
-            </div>
+              );
+            })}
+
+            <div style={{ height: 24 }} />
           </>
         )}
       </div>
 
-      {/* Log / edit body weight */}
+      {/* Log / edit body weight - kept from original */}
       {bwSheet && (
         <div className="sheet-backdrop" onClick={() => setBwSheet(null)}>
           <div className="sheet-light" role="dialog" aria-modal="true" aria-label="Log body weight" onClick={(e) => e.stopPropagation()}>
             <div className="grabber" />
             <div className="sheet-head">
               <p className="title-2">{bwSheet.id ? "Edit weight" : "Log body weight"}</p>
-              <button className="btn btn-plain" onClick={() => setBwSheet(null)}>
-                Cancel
-              </button>
+              <button className="btn btn-plain" onClick={() => setBwSheet(null)}>Cancel</button>
             </div>
             <p className="footnote">Logged in lb only — never invented.</p>
             <div className="spacer-12" />
-            <input
-              className="num-input"
-              type="number"
-              inputMode="decimal"
-              min="1"
-              step="0.1"
-              placeholder="180"
-              value={bwSheet.value}
-              autoFocus
-              onChange={(e) => setBwSheet((p) => ({ ...p, value: e.target.value }))}
-            />
+            <input className="num-input" type="number" inputMode="decimal" min="1" step="0.1" placeholder="180"
+              value={bwSheet.value} autoFocus onChange={(e) => setBwSheet((p) => ({ ...p, value: e.target.value }))} />
             <div className="spacer-16" />
             <button className="btn btn-filled" style={{ width: "100%" }} disabled={bwSaving} onClick={saveWeight}>
               {bwSaving ? "Saving…" : "Save"}
@@ -447,7 +330,7 @@ export default function Stats() {
         </div>
       )}
 
-      {/* Delete progress photo */}
+      {/* Delete progress photo - kept from original */}
       {confirmPhotoDel && (
         <div className="sheet-backdrop" onClick={() => setConfirmPhotoDel(null)}>
           <div className="sheet-light" role="dialog" aria-modal="true" aria-label="Delete photo" onClick={(e) => e.stopPropagation()}>
@@ -456,43 +339,18 @@ export default function Stats() {
             <div className="spacer-8" />
             <p className="footnote">This photo will be removed from this device.</p>
             <div className="spacer-16" />
-            <button
-              className="btn btn-danger"
-              style={{ width: "100%" }}
-              onClick={async () => {
-                await deletePhoto(confirmPhotoDel);
-                setConfirmPhotoDel(null);
-                setPhotos(await listPhotos());
-              }}
-            >
+            <button className="btn btn-danger" style={{ width: "100%" }}
+              onClick={async () => { await deletePhoto(confirmPhotoDel); setConfirmPhotoDel(null); setPhotos(await listPhotos()); }}>
               Delete
             </button>
             <div className="spacer-8" />
-            <button className="btn btn-gray" style={{ width: "100%" }} onClick={() => setConfirmPhotoDel(null)}>
-              Cancel
-            </button>
+            <button className="btn btn-gray" style={{ width: "100%" }} onClick={() => setConfirmPhotoDel(null)}>Cancel</button>
           </div>
         </div>
       )}
     </section>
   );
 }
-
-function VolumeChart({ series }) {
-  if (!series.length) return null;
-  const w = 640;
-  const h = 220;
-  const l = 36;
-  const r = 8;
-  const t = 16;
-  const b = 28;
-  const max = Math.max(...series.map((p) => p.v), 1);
-  const x = (i) => l + (i * (w - l - r)) / Math.max(1, series.length - 1);
-  const y = (v) => t + (1 - v / max) * (h - t - b);
-  const d = series.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
-  const base = (h - b).toFixed(1);
-  const area = `${d} L${x(series.length - 1).toFixed(1)},${base} L${x(0).toFixed(1)},${base} Z`;
-  const step = Math.max(1, Math.floor(series.length / 6));
   return (
     <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Volume">
       <path d={area} fill="rgba(240,55,45,0.12)" />
