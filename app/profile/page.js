@@ -21,7 +21,7 @@ export default function Profile() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const [name, setName] = useState("");
-  const [photo, setPhoto] = useState("/assets/avatar.jpg");
+  const [photo, setPhoto] = useState("/assets/avatar-default.jpg");
 
   useEffect(() => {
     getProfilePhoto().then((p) => { if (p) setPhoto(p); });
