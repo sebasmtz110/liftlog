@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
-import { getProfilePhoto, setProfilePhoto } from "../../lib/profilePhoto";
+import { getProfilePhoto, setProfilePhoto, migrateLegacyPhoto } from "../../lib/profilePhoto";
 import ConfigBanner from "../components/ConfigBanner";
 import Icon from "../components/Icon";
 
@@ -24,7 +24,10 @@ export default function Profile() {
   const [photo, setPhoto] = useState("/assets/avatar-default.jpg");
 
   useEffect(() => {
-    getProfilePhoto(user?.id).then((p) => { if (p) setPhoto(p); });
+    if (!user?.id) return;
+    migrateLegacyPhoto(user.id).then(() => {
+      getProfilePhoto(user.id).then((p) => { if (p) setPhoto(p); });
+    });
   }, [user]);
 
   useEffect(() => {
