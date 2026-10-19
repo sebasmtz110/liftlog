@@ -1,97 +1,34 @@
-# Training UI
+# LiftLog
 
-A standalone strength-training prototype for Sebas. Light screens for browsing, a dark screen for the set you are in. Vanilla HTML, CSS, and JavaScript. No build step, no account, no remote API.
-
-## Save it
-
-`Sebas-Training.html` is the whole app in one text file, photos included. Download that file and open it in a browser. Skip `training-ui.zip` — editors treat the zip as a binary file and will not open it.
-
-The split source is `index.html`, `styles.css`, and `app.js`, with photos in `assets/`.
+Mobile workout tracker. The interface matches `Sebas-Training.html`: black, white, and one red accent. Accounts, the onboarding quiz, and saved workouts live in Supabase.
 
 ## Run it
 
-Open `Sebas-Training.html` or `index.html` in a browser, or serve the folder:
-
 ```bash
-python3 -m http.server 41791
+npm install
+npm run dev -- --port 43123
 ```
 
-Then visit `http://127.0.0.1:41791`.
+Open `http://127.0.0.1:43123`.
 
-## Screens
+Set these environment variables (never commit them, never use the service role key in the app):
 
-- **Home** — today's session, the week, and what is next
-- **Workouts** — history, templates, and a finished-session summary
-- **Progress** — strength trend, top lifts, volume, body notes
-- **Library** — search, muscle filters, exercise detail
-- **More** — profile, programs, settings, help
-- **Workout** — load, reps, log, rest, sequence, finish
-- **Movement** — still frame with a timeline Muse can replace
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-Weights are stored in pounds and can be shown in kilograms from Settings. A session in progress is kept in `localStorage` under `alder-state`.
+Without them the screens still render and a banner explains what to add. With them, email signup opens a session immediately when confirm-email is off.
 
-## Muse
+## What you can do
 
-Unzip this project and upload the folder. The prototype is static.
+- Sign in, take the skippable quiz, and save one of four splits.
+- Home shows your name, today's workout, the week, and recent sessions.
+- Workouts is your split, with Start, Edit, and new templates.
+- Library is the 24 exercises from the design file, with photos in `public/assets`.
+- Progress is volume, personal records, body weight, and photos that stay on this device.
+- History lists finished workouts.
 
-### Motion slot
+Profile and progress photos are stored in IndexedDB. They are not uploaded.
 
-The active set and the movement screen expose:
+## Motion
 
-```html
-<div data-muse-slot="exercise-motion" data-exercise-id="shoulder-press"></div>
-```
-
-Mount your own view by assigning this before the page loads, or any time after:
-
-```js
-window.ALDER_MOTION_MOUNT = (slot) => {
-  const view = document.createElement("canvas");
-  view.dataset.exerciseId = slot.dataset.exerciseId;
-  slot.append(view);
-};
-```
-
-While the timeline plays, the page emits:
-
-```js
-document.addEventListener("alder:motion", (event) => {
-  const { exerciseId, phase, time, duration } = event.detail;
-  // phase is "setup", "movement", or "finish"
-});
-```
-
-Until a source is mounted, the still image stays in the frame. The hero photo uses `data-muse-slot="hero-still"`.
-
-### Replace the photography
-
-Everything visible lives in `assets/`. Swap a file and keep the same name.
-
-| File | Where it shows |
-| --- | --- |
-| `hero-skyline.jpg` | Dashboard hero |
-| `avatar.jpg` | Profile and home |
-| `bench-press.jpg` | Bench press, active set |
-| `bench-detail.jpg` | Bench press detail |
-| `seated-press.jpg` | Seated press movement |
-| `better-yesterday.jpg` | Profile card |
-| `gym-dark.jpg` | Rest clock background |
-| `thumb-*.jpg` | Library rows |
-
-### Tokens
-
-```css
-:root {
-  --page: #F4F5F2;
-  --surface: #FFFFFF;
-  --text: #101916;
-  --muted: #69746F;
-  --border: #DFE4DF;
-  --green: #0F706E;
-  --workout-bg: #0C1312;
-  --workout-surface: #151E1C;
-  --mint: #A7F2CF;
-}
-```
-
-Browsing stays on the light tokens. The workout, rest clock, log pad, and progress screen use the dark ones.
+The active set and the movement screen expose `data-muse-slot="exercise-motion"`. Assign `window.ALDER_MOTION_MOUNT` to mount into that element. Until then, the still photo stays.
