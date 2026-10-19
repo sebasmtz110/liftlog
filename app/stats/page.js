@@ -364,3 +364,31 @@ export default function Stats() {
     </svg>
   );
 }
+function VolumeChart({ series }) {
+  if (!series.length) return null;
+  const w = 640;
+  const h = 220;
+  const l = 36;
+  const r = 8;
+  const t = 16;
+  const b = 28;
+  const max = Math.max(...series.map((p) => p.v), 1);
+  const x = (i) => l + (i * (w - l - r)) / Math.max(1, series.length - 1);
+  const y = (v) => t + (1 - v / max) * (h - t - b);
+  const d = series.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+  const base = (h - b).toFixed(1);
+  const area = `${d} L${x(series.length - 1).toFixed(1)},${base} L${x(0).toFixed(1)},${base} Z`;
+  const step = Math.max(1, Math.floor(series.length / 6));
+  return (
+    <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Volume">
+      <path d={area} fill="rgba(240,55,45,0.12)" />
+      <path d={d} fill="none" stroke="#F0372D" strokeWidth="3" strokeLinejoin="round" />
+      {series.map((p, i) => (
+        <circle key={i} cx={x(i)} cy={y(p.v)} r="3.5" fill="#0A0A0A" stroke="#F0372D" strokeWidth="2" />
+      ))}
+      {series.map((p, i) => (i % step === 0 ? (
+        <text key={`l${i}`} x={x(i)} y={h - 6} textAnchor="middle" fill="#9A9A9A" fontSize="12">{p.label}</text>
+      ) : null))}
+    </svg>
+  );
+}
