@@ -346,104 +346,104 @@ export default function Workout() {
         ))}
       </div>
 
-      {/* Template editor sheet */}
+      {/* Template editor sheet (picker is a view inside, not a second overlay) */}
       {editor && (
-        <div className="sheet-backdrop" onClick={() => setEditor(null)}>
+        <div className="sheet-backdrop" onClick={() => { setEditor(null); setPickerOpen(false); setQuery(""); }}>
           <div className="sheet" role="dialog" aria-modal="true" aria-label="Edit workout"
             onClick={(e) => e.stopPropagation()}>
             <div className="grabber" />
-            <div className="sheet-head">
-              <p className="title-2">Edit workout</p>
-              <button className="btn btn-plain" onClick={() => setEditor(null)}>Done</button>
-            </div>
-            <div className="field">
-              <label htmlFor="tpl-name">Name</label>
-              <input
-                id="tpl-name"
-                className="input"
-                value={editor.name}
-                onChange={(e) => setEditor((p) => ({ ...p, name: e.target.value }))}
-              />
-            </div>
-            {editor.items.map((it, i) => (
-              <div key={it.key} className="set-row" style={{ marginBottom: 8 }}>
-                <span className="body" style={{ flex: 1 }}>{it.name}</span>
-                <input
-                  className="input"
-                  style={{ width: 90 }}
-                  value={it.scheme}
-                  placeholder="3x8-12"
-                  aria-label={`Set scheme for ${it.name}`}
-                  onChange={(e) =>
-                    setEditor((p) => ({ ...p, items: p.items.map((x, j) => (j === i ? { ...x, scheme: e.target.value } : x)) }))
-                  }
-                />
-                <button
-                  className="icon-btn"
-                  aria-label={`Remove ${it.name}`}
-                  onClick={() => setEditor((p) => ({ ...p, items: p.items.filter((_, j) => j !== i) }))}
-                >
-                  ×
+            {!pickerOpen ? (
+              <>
+                <div className="sheet-head">
+                  <p className="title-2">Edit workout</p>
+                  <button className="btn btn-plain" onClick={() => setEditor(null)}>Done</button>
+                </div>
+                <div className="field">
+                  <label htmlFor="tpl-name">Name</label>
+                  <input
+                    id="tpl-name"
+                    className="input"
+                    value={editor.name}
+                    onChange={(e) => setEditor((p) => ({ ...p, name: e.target.value }))}
+                  />
+                </div>
+                {editor.items.map((it, i) => (
+                  <div key={it.key} className="set-row" style={{ marginBottom: 8 }}>
+                    <span className="body" style={{ flex: 1 }}>{it.name}</span>
+                    <input
+                      className="input"
+                      style={{ width: 90 }}
+                      value={it.scheme}
+                      placeholder="3x8-12"
+                      aria-label={`Set scheme for ${it.name}`}
+                      onChange={(e) =>
+                        setEditor((p) => ({ ...p, items: p.items.map((x, j) => (j === i ? { ...x, scheme: e.target.value } : x)) }))
+                      }
+                    />
+                    <button
+                      className="icon-btn"
+                      aria-label={`Remove ${it.name}`}
+                      onClick={() => setEditor((p) => ({ ...p, items: p.items.filter((_, j) => j !== i) }))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <div className="spacer-8" />
+                <button className="btn btn-gray" style={{ width: "100%" }} onClick={() => { setQuery(""); setPickerOpen(true); }}>
+                  + Add exercise
                 </button>
-              </div>
-            ))}
-            <div className="spacer-8" />
-            <button className="btn btn-gray" style={{ width: "100%" }} onClick={() => setPickerOpen(true)}>
-              + Add exercise
-            </button>
-            <div className="spacer-12" />
-            <button className="btn btn-filled" style={{ width: "100%" }} disabled={saving} onClick={saveTemplate}>
-              {saving ? "Saving…" : "Save workout"}
-            </button>
-            <div className="spacer-12" />
-            <button className="btn btn-bad" style={{ width: "100%" }} onClick={deleteTemplate}>
-              Delete workout
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Exercise picker sheet */}
-      {pickerOpen && (
-        <div className="sheet-backdrop" onClick={() => setPickerOpen(false)}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label="Add exercise"
-            onClick={(e) => e.stopPropagation()}>
-            <div className="grabber" />
-            <div className="sheet-head">
-              <p className="title-2">Exercises</p>
-              <button className="btn btn-plain" onClick={() => setPickerOpen(false)}>Done</button>
-            </div>
-            <div className="field">
-              <input
-                className="input"
-                placeholder="Search exercises"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className="grouped-list">
-              {filteredCatalog.map((e) => (
-                <button
-                  key={e.id}
-                  className="grouped-row"
-                  onClick={() => {
-                    setEditor((p) => ({
-                      ...p,
-                      items: [...p.items, { key: `n${Date.now()}`, exercise_id: e.id, name: e.name, scheme: "3x8-12" }],
-                    }));
-                    setPickerOpen(false);
-                    setQuery("");
-                  }}
-                >
-                  <span className="grouped-row-thumb">
-                    <DemoThumb name={e.name} />
-                    <span className="grouped-row-title">{e.name}</span>
-                  </span>
-                  <span className={`muscle-tag ${muscleTagClass(e.muscle_group)}`}>{e.muscle_group}</span>
+                <div className="spacer-12" />
+                <button className="btn btn-filled" style={{ width: "100%" }} disabled={saving} onClick={saveTemplate}>
+                  {saving ? "Saving…" : "Save workout"}
                 </button>
-              ))}
-            </div>
+                <div className="spacer-12" />
+                <button className="btn btn-bad" style={{ width: "100%" }} onClick={deleteTemplate}>
+                  Delete workout
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="sheet-head">
+                  <p className="title-2">Add exercise</p>
+                  <button className="btn btn-plain" onClick={() => { setPickerOpen(false); setQuery(""); }}>Back</button>
+                </div>
+                <div className="field">
+                  <input
+                    className="input"
+                    placeholder="Search exercises"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="grouped-list">
+                  {filteredCatalog.map((e) => (
+                    <button
+                      key={e.id}
+                      className="grouped-row"
+                      onClick={() => {
+                        setEditor((p) => ({
+                          ...p,
+                          items: [...p.items, { key: `n${Date.now()}`, exercise_id: e.id, name: e.name, scheme: "3x8-12" }],
+                        }));
+                        setPickerOpen(false);
+                        setQuery("");
+                      }}
+                    >
+                      <span className="grouped-row-thumb">
+                        <DemoThumb name={e.name} />
+                        <span className="grouped-row-title">{e.name}</span>
+                      </span>
+                      <span className={`muscle-tag ${muscleTagClass(e.muscle_group)}`}>{e.muscle_group}</span>
+                    </button>
+                  ))}
+                  {filteredCatalog.length === 0 && (
+                    <p className="footnote" style={{ textAlign: "center", padding: 16 }}>No exercises found</p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
