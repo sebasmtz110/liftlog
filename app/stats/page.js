@@ -198,16 +198,6 @@ export default function Stats() {
     });
   }, [workouts, range, now]);
 
-  // Strava-style: weekly goal ring (workouts this week vs 5 goal)
-  const weekWorkouts = model?.inRange?.length ?? 0;
-  const goalPct = Math.min(100, Math.round((weekWorkouts / 5) * 100));
-  const circ = 2 * Math.PI * 32;
-  const off = circ * (1 - goalPct / 100);
-
-  return (
-    <section className="screen screen-progress" data-screen="progress">
-      <ConfigBanner />
-
   const monthLabel = now ? now.toLocaleDateString(undefined, { month: "long", year: "numeric" }).toUpperCase() : "";
 
   return (
