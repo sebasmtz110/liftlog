@@ -1,6 +1,7 @@
 import "./globals.css";
 import { AuthProvider } from "./components/AuthContext";
 import AuthGate from "./components/AuthGate";
+import InstallPrompt from "./components/InstallPrompt";
 
 export const metadata = {
   title: "LiftLog",
@@ -26,6 +27,7 @@ export default function RootLayout({ children }) {
       <body>
         <AuthProvider>
           <AuthGate>{children}</AuthGate>
+          <InstallPrompt />
         </AuthProvider>
       </body>
     </html>
