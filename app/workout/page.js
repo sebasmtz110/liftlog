@@ -7,7 +7,7 @@ import { useAuth } from "../components/AuthContext";
 import { loadSplit, applySplit, buildSplit, PRESETS, PRESET_ORDER, DAY_NAMES } from "../../lib/presets";
 import { muscleTagClass } from "../../lib/muscleColors";
 import ConfigBanner from "../components/ConfigBanner";
-import { DemoThumb } from "../components/ExerciseDemo";
+import { plateForExercise } from "../../lib/exerciseVisuals";
 
 /** Monday 00:00 of the week containing `d` (local time). */
 function mondayOf(d) {
@@ -431,10 +431,8 @@ export default function Workout() {
                         setQuery("");
                       }}
                     >
-                      <span className="grouped-row-thumb">
-                        <DemoThumb name={e.name} />
-                        <span className="grouped-row-title">{e.name}</span>
-                      </span>
+                      <img className="grouped-row-thumb" src={plateForExercise(e.name)} alt="" />
+                      <span className="grouped-row-title">{e.name}</span>
                       <span className={`muscle-tag ${muscleTagClass(e.muscle_group)}`}>{e.muscle_group}</span>
                     </button>
                   ))}
