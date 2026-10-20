@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY } from "../../lib/supabase";
+import { supabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY, loadWorkoutSnapshot, saveWorkoutSnapshot, clearWorkoutSnapshot } from "../../lib/supabase";
 import { catalogByName } from "../../lib/catalog";
 import { visualForExercise, plateForExercise } from "../../lib/exerciseVisuals";
 import ConfigBanner from "../components/ConfigBanner";
@@ -47,6 +47,16 @@ export default function Session() {
   const [now, setNow] = useState(0);
   const slotRef = useRef(null);
   const motionRef = useRef(null);
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [drag, setDrag] = useState(null); // {id, index, target, dy, h} while reordering
+  const [logging, setLogging] = useState(false);
+  const listRef = useRef(null);
+  const dragState = useRef(null);
+  const justDraggedRef = useRef(false);
+  const hydratedRef = useRef(false);
+  const orderRef = useRef([]);
+  const loggingRef = useRef(false);
+  const restEndsRef = useRef(null);
 
   useEffect(() => {
     const id = localStorage.getItem(ACTIVE_WORKOUT_KEY);
@@ -89,6 +99,31 @@ export default function Session() {
         setDrafts(next);
       }
       await refreshSets(id, seeded);
+      // Restore the saved session snapshot (if any): exercise order, drafts,
+      // focused exercise, and a still-running rest timer.
+      const snap = loadWorkoutSnapshot(id);
+      if (snap) {
+        if (Array.isArray(snap.order) && snap.order.length) {
+          const pos = new Map(snap.order.map((x, i) => [x, i]));
+          setAddedExerciseIds((prev) => [...prev].sort((a, b) => {
+            const pa = pos.has(a) ? pos.get(a) : 1e9;
+            const pb = pos.has(b) ? pos.get(b) : 1e9;
+            return pa - pb;
+          }));
+        }
+        if (snap.drafts && typeof snap.drafts === "object") {
+          setDrafts((d) => ({ ...d, ...snap.drafts }));
+        }
+        if (snap.focusId) setFocusId(snap.focusId);
+        if (snap.rest && snap.rest.endsAt > Date.now()) {
+          restEndsRef.current = snap.rest.endsAt;
+          setRestDur(snap.rest.dur || REST_DEFAULT);
+          setRestLeft(Math.max(1, Math.ceil((snap.rest.endsAt - Date.now()) / 1000)));
+          setRestOn(true);
+          setShowRest(true);
+        }
+      }
+      hydratedRef.current = true;
       setLoading(false);
     })();
   }, []);
@@ -97,6 +132,24 @@ export default function Session() {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Mirror the exercise order for use inside pointer handlers.
+  useEffect(() => {
+    orderRef.current = addedExerciseIds;
+  }, [addedExerciseIds]);
+
+  // Persist the session snapshot (order, drafts, focus, rest) so the workout
+  // survives navigation and reloads. Guarded until the initial restore runs.
+  useEffect(() => {
+    if (!workoutId || !hydratedRef.current) return;
+    saveWorkoutSnapshot(workoutId, {
+      order: addedExerciseIds,
+      drafts,
+      focusId,
+      rest: restOn && restEndsRef.current ? { endsAt: restEndsRef.current, dur: restDur } : null,
+      savedAt: Date.now(),
+    });
+  }, [workoutId, addedExerciseIds, drafts, focusId, restOn, restDur]);
 
   useEffect(() => {
     if (!restOn || restLeft === null || restLeft <= 0) {
@@ -189,31 +242,40 @@ export default function Session() {
     if (restOn) {
       setRestDur((v) => Math.min(600, Math.max(15, v + dir * 15)));
       setRestLeft((v) => v == null ? v : Math.min(600, Math.max(0, v + dir * 15)));
+      if (restEndsRef.current) restEndsRef.current += dir * 15 * 1000;
       return;
     }
     bump(metric, metric === "weight" ? dir * 5 : dir);
   }
 
   async function logSet() {
-    if (!focus || !workoutId) return;
+    if (!focus || !workoutId || loggingRef.current) return;
     const draft = drafts[focus.exercise.id] ?? {};
     const reps = parseInt(draft.reps, 10);
     const weight = parseFloat(draft.weight);
     if (!reps || reps <= 0) return;
-    const existing = sets.filter((s) => s.exercise_id === focus.exercise.id).length;
-    const { error } = await supabase.from("sets").insert({
-      workout_id: workoutId,
-      exercise_id: focus.exercise.id,
-      set_number: existing + 1,
-      reps,
-      weight: Number.isFinite(weight) ? weight : 0,
-    });
-    if (error) return;
-    await refreshSets(workoutId);
-    setLogOpen(false);
-    setRestLeft(restDur);
-    setRestOn(true);
-    setShowRest(true);
+    loggingRef.current = true;
+    setLogging(true);
+    try {
+      const existing = sets.filter((s) => s.exercise_id === focus.exercise.id).length;
+      const { error } = await supabase.from("sets").insert({
+        workout_id: workoutId,
+        exercise_id: focus.exercise.id,
+        set_number: existing + 1,
+        reps,
+        weight: Number.isFinite(weight) ? weight : 0,
+      });
+      if (error) return;
+      await refreshSets(workoutId);
+      setLogOpen(false);
+      restEndsRef.current = Date.now() + restDur * 1000;
+      setRestLeft(restDur);
+      setRestOn(true);
+      setShowRest(true);
+    } finally {
+      loggingRef.current = false;
+      setLogging(false);
+    }
   }
 
   function padKey(key) {
@@ -238,6 +300,7 @@ export default function Session() {
     setFinishing(false);
     if (!error) {
       localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+      clearWorkoutSnapshot(workoutId);
       router.push(`/complete?id=${workoutId}`);
     }
   }
@@ -253,7 +316,82 @@ export default function Session() {
     await supabase.from("sets").delete().eq("workout_id", workoutId);
     await supabase.from("workouts").delete().eq("id", workoutId);
     localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+    clearWorkoutSnapshot(workoutId);
     router.push("/");
+  }
+
+  // ---- Drag-and-drop exercise reordering (Pointer Events: touch + mouse) ----
+  const orderList = useMemo(
+    () => addedExerciseIds.map((id) => grouped.find((g) => g.exercise.id === id)).filter(Boolean),
+    [addedExerciseIds, grouped]
+  );
+
+  function exerciseRows() {
+    return listRef.current ? [...listRef.current.querySelectorAll("[data-exid]")] : [];
+  }
+
+  function startDrag(e, exId) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
+    const rows = exerciseRows();
+    const index = rows.findIndex((r) => r.dataset.exid === exId);
+    if (index < 0) return;
+    dragState.current = {
+      id: exId, pid: e.pointerId, startY: e.clientY, index, target: index,
+      active: false, h: rows[index].getBoundingClientRect().height || 64,
+    };
+  }
+
+  function moveDrag(e) {
+    const d = dragState.current;
+    if (!d || e.pointerId !== d.pid) return;
+    const dy = e.clientY - d.startY;
+    if (!d.active) {
+      if (Math.abs(dy) < 10) return;
+      d.active = true;
+      justDraggedRef.current = true;
+      setDrag({ id: d.id, index: d.index, target: d.index, dy: 0, h: d.h });
+    }
+    // Target = insertion index within the list excluding the dragged row.
+    const rows = exerciseRows();
+    let target = 0;
+    let seen = 0;
+    for (let i = 0; i < rows.length; i++) {
+      if (i === d.index) continue;
+      const r = rows[i].getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) { target = seen; break; }
+      seen++;
+      target = seen;
+    }
+    d.target = target;
+    setDrag((prev) => (prev ? { ...prev, dy, target } : prev));
+  }
+
+  function endDrag(e) {
+    const d = dragState.current;
+    if (!d || (e && e.pointerId !== d.pid)) return;
+    dragState.current = null;
+    const { active, index, target } = d;
+    setDrag(null);
+    if (active && target !== index) {
+      const next = [...orderRef.current];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      setAddedExerciseIds(next);
+    }
+    if (active) setTimeout(() => { justDraggedRef.current = false; }, 80);
+  }
+
+  function reorderRowStyle(i, exId) {
+    if (!drag) return undefined;
+    if (exId === drag.id) return { transform: `translateY(${drag.dy}px)`, zIndex: 5 };
+    const h = drag.h;
+    const oi = i < drag.index ? i : i - 1; // position within list excluding dragged row
+    if (drag.target < drag.index && oi >= drag.target && oi < drag.index) return { transform: `translateY(${h}px)` };
+    if (drag.target > drag.index && oi >= drag.index && oi < drag.target) return { transform: `translateY(${-h}px)` };
+    return undefined;
   }
 
   if (loading) {
@@ -350,7 +488,7 @@ export default function Session() {
               <button type="button" aria-label="Increase reps" onClick={() => bump("reps", 1)}>+</button>
             </div>
           </div>
-          <button className="btn btn-mint btn-block" type="button" onClick={logSet} disabled={!parseInt(draft.reps, 10)}>Log Set</button>
+          <button className="btn btn-mint btn-block" type="button" onClick={logSet} disabled={logging || !parseInt(draft.reps, 10)}>{logging ? "Logging…" : "Log Set"}</button>
         </div>
         <div className="keys">
           {["1","2","3","4","5","6","7","8","9"].map((d) => <button key={d} type="button" onClick={() => padKey(d)}>{d}</button>)}
@@ -390,6 +528,9 @@ export default function Session() {
           >
             {confirmDiscard ? "Tap again to discard" : <Icon name="close" />}
           </button>
+          <button className="icon-btn light" type="button" aria-label="Reorder exercises" onClick={() => setOrderOpen(true)}>
+            <Icon name="list" />
+          </button>
           <button className="icon-btn light" type="button" onClick={finishWorkout} disabled={finishing} aria-label="Finish workout">
             <Icon name="check" />
           </button>
@@ -415,7 +556,7 @@ export default function Session() {
               </button>
               <div className="ring-row">
                 <button className="step" type="button" aria-label="Decrease" onClick={() => nudge(-1)}><Icon name="minus" /></button>
-                <button className="ring ring-sm" type="button" aria-label="Rest timer" onClick={() => { if (restLeft == null) { setRestLeft(restDur); setRestOn(true); } setShowRest(true); }}>
+                <button className="ring ring-sm" type="button" aria-label="Rest timer" onClick={() => { if (restLeft == null) { restEndsRef.current = Date.now() + restDur * 1000; setRestLeft(restDur); setRestOn(true); } setShowRest(true); }}>
                   <svg viewBox="0 0 120 120" aria-hidden="true">
                     <defs>
                       <linearGradient id="mintGradA" x1="0" y1="1" x2="1" y2="0">
@@ -435,7 +576,7 @@ export default function Session() {
                 <div><strong>{sets.length}</strong><span>Sets</span></div>
                 <div><strong>{clock(elapsed)}</strong><span>Elapsed</span></div>
               </div>
-              <button className="btn btn-white btn-block" type="button" onClick={() => setLogOpen(true)}>Log Set</button>
+              <button className="btn btn-white btn-block" type="button" onClick={() => setLogOpen(true)} disabled={logging}>Log Set</button>
             </div>
           </>
         ) : (
@@ -480,6 +621,62 @@ export default function Session() {
           <button className="btn btn-white" type="button" onClick={() => { setShowRest(false); setPickerOpen(true); }} style={{ marginBottom: 8 }}>Switch Exercise</button>
           <button className="btn btn-ghost" type="button" onClick={() => { setRestOn(false); setRestLeft(null); setShowRest(false); }}>Skip Rest</button>
         </section>
+      )}
+
+      {orderOpen && (
+        <div className="sheet">
+          <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => setOrderOpen(false)} />
+          <div className="sheet-card" role="dialog" aria-modal="true" aria-label="Exercise order">
+            <div className="grab" />
+            <header>
+              <h2>Exercise order</h2>
+              <button type="button" onClick={() => setOrderOpen(false)}>Done</button>
+            </header>
+            <p className="footnote" style={{ margin: "2px 0 10px" }}>
+              Hold the handle and drag to reorder. Tap an exercise to switch to it.
+            </p>
+            <div
+              ref={listRef}
+              className="reorder-list"
+              onPointerMove={moveDrag}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            >
+              {orderList.map((g, i) => {
+                const done = g.sets.length;
+                const isDrag = drag && drag.id === g.exercise.id;
+                return (
+                  <div
+                    key={g.exercise.id}
+                    data-exid={g.exercise.id}
+                    className={`reorder-row${isDrag ? " is-dragging" : ""}${g.exercise.id === focusId ? " is-focus" : ""}`}
+                    style={reorderRowStyle(i, g.exercise.id)}
+                    onClick={() => {
+                      if (justDraggedRef.current) return;
+                      setFocusId(g.exercise.id);
+                      setOrderOpen(false);
+                    }}
+                  >
+                    <span
+                      className="drag-handle"
+                      role="button"
+                      aria-label={`Drag to reorder ${g.exercise.name}`}
+                      onPointerDown={(e) => startDrag(e, g.exercise.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Icon name="grip" />
+                    </span>
+                    <span className="reorder-info">
+                      <strong>{g.exercise.name}</strong>
+                      <small>{done} set{done === 1 ? "" : "s"} · {g.exercise.muscle_group || "Exercise"}</small>
+                    </span>
+                    {g.exercise.id === focusId && <span className="reorder-current">Current</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
 
       {pickerOpen && (
