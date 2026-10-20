@@ -681,20 +681,20 @@ export default function Session() {
 
       {pickerOpen && (
         <div className="sheet">
-          <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => setPickerOpen(false)} />
+          <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => { setPickerOpen(false); setQuery(""); }} />
           <div className="sheet-card" role="dialog" aria-modal="true">
             <div className="grab" />
             <header>
               <h2>Exercises</h2>
-              <button type="button" onClick={() => setPickerOpen(false)}>Close</button>
+              <button type="button" onClick={() => { setPickerOpen(false); setQuery(""); }}>Close</button>
             </header>
             <label className="search" style={{ margin: "10px 0" }}>
               <Icon name="search" />
-              <input value={query} placeholder="Search exercises..." onChange={(e) => setQuery(e.target.value)} />
+              <input value={query} placeholder="Search exercises..." onChange={(e) => setQuery(e.target.value)} autoCapitalize="off" autoCorrect="off" spellCheck={false} enterKeyHint="search" />
             </label>
             {catalog.filter((e) => {
               const q = query.trim().toLowerCase();
-              return !q || e.name.toLowerCase().includes(q) || e.muscle_group.toLowerCase().includes(q);
+              return !q || (e.name || "").toLowerCase().includes(q) || (e.muscle_group || "").toLowerCase().includes(q);
             }).map((e) => (
               <button key={e.id} className="seq-item" type="button" onClick={() => {
                 setAddedExerciseIds((prev) => prev.includes(e.id) ? prev : [...prev, e.id]);
