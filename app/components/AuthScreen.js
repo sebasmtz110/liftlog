@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { getSupabase } from "../../lib/supabase";
 
 function friendlyError(message) {
   const m = (message || "").toLowerCase();
@@ -28,6 +28,11 @@ export default function AuthScreen() {
     }
     setBusy(true);
     try {
+      const supabase = await getSupabase();
+      if (!supabase) {
+        setError("Supabase isn't configured.");
+        return;
+      }
       const fn = mode === "signin"
         ? supabase.auth.signInWithPassword({ email: email.trim(), password })
         : supabase.auth.signUp({ email: email.trim(), password });

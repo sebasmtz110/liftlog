@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { supabase, isConfigured } from "../../lib/supabase";
+import { getSupabase, isConfigured } from "../../lib/supabase";
 
 const TIMEOUT_MS = 8000;
 
@@ -29,15 +29,20 @@ function needsRefresh(session) {
  * refresh it (wrapped in a timeout so this can never hang the UI). If the
  * session can't be recovered, sign out so the auth gate renders instead of
  * a stuck spinner.
+ *
+ * The client loads lazily (getSupabase) so supabase-js stays out of the
+ * initial JS bundle until it's genuinely needed.
  */
 export default function ForegroundRefresh() {
   useEffect(() => {
-    if (!isConfigured || !supabase) return;
+    if (!isConfigured) return;
     let cancelled = false;
 
     async function onForeground() {
       if (document.visibilityState !== "visible" || cancelled) return;
       try {
+        const supabase = await getSupabase();
+        if (!supabase || cancelled) return;
         const { data } = await withTimeout(supabase.auth.getSession());
         if (cancelled) return;
         if (!needsRefresh(data.session)) return;
@@ -49,10 +54,12 @@ export default function ForegroundRefresh() {
         // instead of leaving the app stuck on a dead session.
         if (cancelled) return;
         try {
-          await withTimeout(supabase.auth.signOut());
+          const supabase = await getSupabase();
+          if (supabase) await withTimeout(supabase.auth.signOut());
         } catch {
           try {
-            await supabase.auth.signOut({ scope: "local" });
+            const s2 = await getSupabase();
+            if (s2) await s2.auth.signOut({ scope: "local" });
           } catch {}
         }
       }

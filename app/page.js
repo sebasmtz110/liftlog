@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY } from "../lib/supabase";
+import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY } from "../lib/supabase";
 import { loadSplit } from "../lib/presets";
 import { thumbFor } from "../lib/catalog";
 import ConfigBanner from "./components/ConfigBanner";
@@ -107,6 +107,11 @@ export default function Home() {
       return;
     }
     (async () => {
+      const supabase = await getSupabase();
+      if (!supabase) {
+        setModel(base);
+        return;
+      }
       const { data } = await supabase
         .from("workouts")
         .select("id, started_at, ended_at, sets(id, reps, weight, exercise_id, exercises(name, muscle_group))")
@@ -158,6 +163,8 @@ export default function Home() {
   async function startFromTemplate(tpl) {
     if (!user || startingTpl || !isConfigured) return;
     setStartingTpl(tpl.id);
+    const supabase = await getSupabase();
+    if (!supabase) return;
     const { data, error } = await supabase
       .from("workouts")
       .insert({ started_at: new Date().toISOString(), user_id: user.id, template_id: tpl.id })
@@ -178,6 +185,8 @@ export default function Home() {
   async function startWorkout() {
     if (!isConfigured || !user) return;
     setStarting(true);
+    const supabase = await getSupabase();
+    if (!supabase) return;
     const { data, error } = await supabase
       .from("workouts")
       .insert({ started_at: new Date().toISOString(), user_id: user.id })

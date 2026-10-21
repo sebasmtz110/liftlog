@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase, isConfigured } from "../../lib/supabase";
+import { getSupabase, isConfigured } from "../../lib/supabase";
 import ConfigBanner from "../components/ConfigBanner";
 import Icon from "../components/Icon";
 
@@ -33,6 +33,11 @@ function CompleteInner() {
       return;
     }
     (async () => {
+      const supabase = await getSupabase();
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
       const [{ data: workout }, { data: sets }] = await Promise.all([
         supabase.from("workouts").select("id, started_at, ended_at, template_id").eq("id", id).single(),
         supabase.from("sets").select("reps, weight, exercise_id").eq("workout_id", id),

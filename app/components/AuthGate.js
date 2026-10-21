@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthContext";
-import { supabase, isConfigured } from "../../lib/supabase";
+import { getSupabase, isConfigured } from "../../lib/supabase";
 import TabBar, { Sidebar } from "./TabBar";
 import AuthScreen from "./AuthScreen";
 import Quiz from "./Quiz";
@@ -49,6 +49,11 @@ export default function AuthGate({ children }) {
       return;
     }
     try {
+      const supabase = await getSupabase();
+      if (!supabase) {
+        setOnboarded(true);
+        return;
+      }
       const { data, error } = await supabase
         .from("profiles")
         .select("onboarding_done")

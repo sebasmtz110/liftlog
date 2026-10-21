@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { getSupabase } from "../../lib/supabase";
 import { PRESETS, PRESET_ORDER, DAY_NAMES, buildSplit, recommendPreset, applySplit } from "../../lib/presets";
 
 const EXPERIENCE = [
@@ -48,13 +48,16 @@ export default function Quiz({ userId, onDone }) {
   async function finishWithSplit(built) {
     setSaving(true);
     try {
-      await applySplit(supabase, userId, built);
-      await supabase.from("profiles").upsert({
-        id: userId,
-        display_name: name.trim() || null,
-        weekly_goal: built.daysPerWeek,
-        onboarding_done: true,
-      });
+      const supabase = await getSupabase();
+      if (supabase) {
+        await applySplit(supabase, userId, built);
+        await supabase.from("profiles").upsert({
+          id: userId,
+          display_name: name.trim() || null,
+          weekly_goal: built.daysPerWeek,
+          onboarding_done: true,
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -64,11 +67,14 @@ export default function Quiz({ userId, onDone }) {
   async function skipAll() {
     setSaving(true);
     try {
-      await supabase.from("profiles").upsert({
-        id: userId,
-        display_name: name.trim() || null,
-        onboarding_done: true,
-      });
+      const supabase = await getSupabase();
+      if (supabase) {
+        await supabase.from("profiles").upsert({
+          id: userId,
+          display_name: name.trim() || null,
+          onboarding_done: true,
+        });
+      }
     } finally {
       setSaving(false);
     }

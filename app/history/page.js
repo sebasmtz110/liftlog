@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase, isConfigured } from "../../lib/supabase";
+import { getSupabase, isConfigured } from "../../lib/supabase";
 import { thumbFor } from "../../lib/catalog";
 import ConfigBanner from "../components/ConfigBanner";
 import Icon from "../components/Icon";
@@ -27,6 +27,11 @@ function HistoryInner() {
 
   const load = async () => {
     if (!isConfigured) {
+      setLoading(false);
+      return;
+    }
+    const supabase = await getSupabase();
+    if (!supabase) {
       setLoading(false);
       return;
     }
@@ -55,11 +60,14 @@ function HistoryInner() {
 
   const saveEdits = async () => {
     setSaving(true);
-    for (const [setId, vals] of Object.entries(editSets)) {
-      await supabase
-        .from("sets")
-        .update({ reps: Number(vals.reps) || 0, weight: Number(vals.weight) || 0 })
-        .eq("id", setId);
+    const supabase = await getSupabase();
+    if (supabase) {
+      for (const [setId, vals] of Object.entries(editSets)) {
+        await supabase
+          .from("sets")
+          .update({ reps: Number(vals.reps) || 0, weight: Number(vals.weight) || 0 })
+          .eq("id", setId);
+      }
     }
     setSaving(false);
     setEditing(false);
@@ -68,6 +76,8 @@ function HistoryInner() {
 
   const deleteWorkout = async () => {
     if (!confirm("Delete this workout? This can't be undone.")) return;
+    const supabase = await getSupabase();
+    if (!supabase) return;
     await supabase.from("sets").delete().eq("workout_id", open.id);
     await supabase.from("workouts").delete().eq("id", open.id);
     setOpenId(null);

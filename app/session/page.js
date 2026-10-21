@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY, loadWorkoutSnapshot, saveWorkoutSnapshot, clearWorkoutSnapshot } from "../../lib/supabase";
+import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY, loadWorkoutSnapshot, saveWorkoutSnapshot, clearWorkoutSnapshot } from "../../lib/supabase";
 import { catalogByName } from "../../lib/catalog";
 import { visualForExercise, plateForExercise } from "../../lib/exerciseVisuals";
 import ConfigBanner from "../components/ConfigBanner";
@@ -66,6 +66,11 @@ export default function Session() {
     }
     setWorkoutId(id);
     (async () => {
+      const supabase = await getSupabase();
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
       const [{ data: workout }, { data: exercises }] = await Promise.all([
         supabase.from("workouts").select("id, started_at, ended_at").eq("id", id).single(),
         supabase.from("exercises").select("id, name, muscle_group").order("name"),
@@ -165,6 +170,8 @@ export default function Session() {
   }, [restOn, restLeft === null, restLeft <= 0]);
 
   async function refreshSets(id, seeded = []) {
+    const supabase = await getSupabase();
+    if (!supabase) return;
     const { data } = await supabase
       .from("sets")
       .select("id, set_number, reps, weight, exercise_id, exercises(name, muscle_group)")
@@ -258,6 +265,8 @@ export default function Session() {
     setLogging(true);
     try {
       const existing = sets.filter((s) => s.exercise_id === focus.exercise.id).length;
+      const supabase = await getSupabase();
+      if (!supabase) return;
       const { error } = await supabase.from("sets").insert({
         workout_id: workoutId,
         exercise_id: focus.exercise.id,
@@ -296,7 +305,10 @@ export default function Session() {
   async function finishWorkout() {
     if (!workoutId) return;
     setFinishing(true);
-    const { error } = await supabase.from("workouts").update({ ended_at: new Date().toISOString() }).eq("id", workoutId);
+    const supabase = await getSupabase();
+    const { error } = supabase
+      ? await supabase.from("workouts").update({ ended_at: new Date().toISOString() }).eq("id", workoutId)
+      : { error: new Error("no-client") };
     setFinishing(false);
     if (!error) {
       localStorage.removeItem(ACTIVE_WORKOUT_KEY);
@@ -313,8 +325,11 @@ export default function Session() {
       return;
     }
     setConfirmDiscard(false);
-    await supabase.from("sets").delete().eq("workout_id", workoutId);
-    await supabase.from("workouts").delete().eq("id", workoutId);
+    const supabase = await getSupabase();
+    if (supabase) {
+      await supabase.from("sets").delete().eq("workout_id", workoutId);
+      await supabase.from("workouts").delete().eq("id", workoutId);
+    }
     localStorage.removeItem(ACTIVE_WORKOUT_KEY);
     clearWorkoutSnapshot(workoutId);
     router.push("/");

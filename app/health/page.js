@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, isConfigured } from "../../lib/supabase";
+import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
 import ConfigBanner from "../components/ConfigBanner";
 import Icon from "../components/Icon";
@@ -67,6 +67,8 @@ export default function Health() {
     if (user && user.email !== SEBAS_EMAIL) { router.replace("/"); return; }
     if (!isConfigured) { setLoading(false); return; }
     (async () => {
+      const supabase = await getSupabase();
+      if (!supabase) { setLoading(false); return; }
       const { data: health } = await supabase
         .from("health_data").select("*").order("date", { ascending: false }).limit(14);
       if (health?.length) setData(health);

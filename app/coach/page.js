@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase, isConfigured } from "../../lib/supabase";
+import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
 import { loadSplit } from "../../lib/presets";
 import { answerCoach, QUICK } from "../../lib/coach";
@@ -29,6 +29,11 @@ export default function Coach() {
       return;
     }
     (async () => {
+      const supabase = await getSupabase();
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
       const [split, { data: profile }, { data: workouts }] = await Promise.all([
         loadSplit(supabase, user.id),
         supabase.from("profiles").select("weekly_goal").eq("id", user.id).maybeSingle(),

@@ -1,4 +1,5 @@
 import "./globals.css";
+import { inter } from "./fonts";
 import { AuthProvider } from "./components/AuthContext";
 import AuthGate from "./components/AuthGate";
 import InstallPrompt from "./components/InstallPrompt";
@@ -24,7 +25,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         <AuthProvider>
           <AuthGate>{children}</AuthGate>

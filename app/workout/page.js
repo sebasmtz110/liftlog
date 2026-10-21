@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY } from "../../lib/supabase";
+import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
 import { loadSplit, applySplit, buildSplit, PRESETS, PRESET_ORDER, DAY_NAMES } from "../../lib/presets";
 import { muscleTagClass } from "../../lib/muscleColors";
@@ -55,6 +55,11 @@ export default function Workout() {
       setLoading(false);
       return;
     }
+    const supabase = await getSupabase();
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     const [s, { data: profile }, { data: workouts }, { data: exercises }] = await Promise.all([
       loadSplit(supabase, user.id),
       supabase.from("profiles").select("weekly_goal").eq("id", user.id).maybeSingle(),
@@ -83,6 +88,11 @@ export default function Workout() {
   async function startFromTemplate(tpl) {
     if (!user || starting) return;
     setStarting(tpl.id);
+    const supabase = await getSupabase();
+    if (!supabase) {
+      setStarting(null);
+      return;
+    }
     const { data, error } = await supabase
       .from("workouts")
       .insert({ started_at: new Date().toISOString(), user_id: user.id, template_id: tpl.id })
@@ -108,11 +118,14 @@ export default function Workout() {
 
   async function saveSplit() {
     setSaving(true);
-    for (const d of draftDays) {
-      await supabase
-        .from("split_days")
-        .update({ label: d.label, is_rest: d.is_rest, muscle_targets: d.is_rest ? "" : d.muscle_targets })
-        .eq("id", d.id);
+    const supabase = await getSupabase();
+    if (supabase) {
+      for (const d of draftDays) {
+        await supabase
+          .from("split_days")
+          .update({ label: d.label, is_rest: d.is_rest, muscle_targets: d.is_rest ? "" : d.muscle_targets })
+          .eq("id", d.id);
+      }
     }
     setSaving(false);
     setEditing(false);
@@ -122,7 +135,8 @@ export default function Workout() {
   async function switchPreset(key) {
     setSaving(true);
     const built = buildSplit(key);
-    await applySplit(supabase, user.id, built);
+    const supabase = await getSupabase();
+    if (supabase) await applySplit(supabase, user.id, built);
     setSaving(false);
     setEditing(false);
     setSwitching(false);
@@ -142,6 +156,8 @@ export default function Workout() {
   }
 
   async function newTemplate() {
+    const supabase = await getSupabase();
+    if (!supabase) return;
     const { data, error } = await supabase
       .from("workout_templates")
       .insert({ user_id: user.id, name: "New workout" })
@@ -157,16 +173,19 @@ export default function Workout() {
     if (!editor) return;
     setSaving(true);
     const cleanName = editor.name.trim() || "Workout";
-    await supabase.from("workout_templates").update({ name: cleanName }).eq("id", editor.id);
-    await supabase.from("template_exercises").delete().eq("template_id", editor.id);
-    let order = 0;
-    for (const it of editor.items) {
-      await supabase.from("template_exercises").insert({
-        template_id: editor.id,
-        exercise_id: it.exercise_id,
-        set_scheme: it.scheme.trim(),
-        sort_order: order++,
-      });
+    const supabase = await getSupabase();
+    if (supabase) {
+      await supabase.from("workout_templates").update({ name: cleanName }).eq("id", editor.id);
+      await supabase.from("template_exercises").delete().eq("template_id", editor.id);
+      let order = 0;
+      for (const it of editor.items) {
+        await supabase.from("template_exercises").insert({
+          template_id: editor.id,
+          exercise_id: it.exercise_id,
+          set_scheme: it.scheme.trim(),
+          sort_order: order++,
+        });
+      }
     }
     setSaving(false);
     setEditor(null);
@@ -175,7 +194,8 @@ export default function Workout() {
 
   async function deleteTemplate() {
     if (!editor || !window.confirm(`Delete "${editor.name}"?`)) return;
-    await supabase.from("workout_templates").delete().eq("id", editor.id);
+    const supabase = await getSupabase();
+    if (supabase) await supabase.from("workout_templates").delete().eq("id", editor.id);
     setEditor(null);
     refresh();
   }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./Icon";
 import { useAuth } from "./AuthContext";
-import { supabase, isConfigured } from "../../lib/supabase";
+import { getSupabase, isConfigured } from "../../lib/supabase";
 import { getProfilePhoto } from "../../lib/profilePhoto";
 
 const SEBAS_EMAIL = "sebasmtz110@gmail.com";
@@ -57,8 +57,11 @@ export function Sidebar() {
 
   useEffect(() => {
     if (!user || !isConfigured) return;
-    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
-      .then(({ data }) => { if (data?.display_name) setName(data.display_name); });
+    getSupabase().then((supabase) => {
+      if (!supabase) return;
+      supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+        .then(({ data }) => { if (data?.display_name) setName(data.display_name); });
+    });
   }, [user]);
 
   return (

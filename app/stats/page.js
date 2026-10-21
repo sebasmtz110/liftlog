@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase, isConfigured } from "../../lib/supabase";
+import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
 import { listPhotos, addPhoto, deletePhoto, shrinkPhoto } from "../../lib/photos";
 import ConfigBanner from "../components/ConfigBanner";
@@ -37,6 +37,8 @@ export default function Stats() {
 
   async function refreshBody() {
     if (!user || !isConfigured) return;
+    const supabase = await getSupabase();
+    if (!supabase) return;
     const { data } = await supabase
       .from("body_weights")
       .select("id, weight_lb, logged_at")
@@ -62,6 +64,11 @@ export default function Stats() {
       return;
     }
     (async () => {
+      const supabase = await getSupabase();
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
       const { data } = await supabase
         .from("workouts")
         .select("id, started_at, sets(id, reps, weight, exercises(name, muscle_group))")
@@ -77,10 +84,13 @@ export default function Stats() {
     const v = Number(bwSheet?.value);
     if (!(v > 0) || !user || !isConfigured) return;
     setBwSaving(true);
-    if (bwSheet.id) {
-      await supabase.from("body_weights").update({ weight_lb: v }).eq("id", bwSheet.id);
-    } else {
-      await supabase.from("body_weights").insert({ user_id: user.id, weight_lb: v });
+    const supabase = await getSupabase();
+    if (supabase) {
+      if (bwSheet.id) {
+        await supabase.from("body_weights").update({ weight_lb: v }).eq("id", bwSheet.id);
+      } else {
+        await supabase.from("body_weights").insert({ user_id: user.id, weight_lb: v });
+      }
     }
     setBwSaving(false);
     setBwSheet(null);
@@ -89,7 +99,8 @@ export default function Stats() {
 
   async function deleteWeight(id) {
     if (!confirm("Delete this weight entry?")) return;
-    await supabase.from("body_weights").delete().eq("id", id);
+    const supabase = await getSupabase();
+    if (supabase) await supabase.from("body_weights").delete().eq("id", id);
     refreshBody();
   }
 
