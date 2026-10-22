@@ -12,7 +12,14 @@ const TABS = [
   { href: "/workout", label: "Workouts", icon: "workouts" },
   { href: "/exercises", label: "Library", icon: "library" },
   { href: "/stats", label: "Progress", icon: "progress" },
+  { href: "/history", label: "History", icon: "clock" },
 ];
+
+const HEALTH_TAB = { href: "/health", label: "Health", icon: "heart" };
+
+function tabsFor(user) {
+  return user?.email === SEBAS_EMAIL ? [...TABS.slice(0, 4), HEALTH_TAB, TABS[4]] : TABS;
+}
 
 const MORE = [
   { href: "/history", label: "History" },
@@ -38,9 +45,10 @@ function active(pathname, href) {
 
 export default function TabBar() {
   const pathname = usePathname() || "/";
+  const { user } = useAuth();
   return (
     <nav className="tabbar" aria-label="Primary">
-      {TABS.map((t) => (
+      {tabsFor(user).map((t) => (
         <Link key={t.href} href={t.href} className={active(pathname, t.href) ? "is-active" : ""}>
           <Icon name={t.icon} />
           <span>{t.label}</span>
@@ -53,7 +61,7 @@ export default function TabBar() {
 export function Sidebar() {
   const pathname = usePathname() || "/";
   const { user } = useAuth();
-  const more = user?.email === SEBAS_EMAIL ? [...MORE, { href: "/health", label: "Health" }] : MORE;
+  const more = MORE;
   return (
     <aside className="sidebar">
       <Link className="brand" href="/">
@@ -61,7 +69,7 @@ export function Sidebar() {
         LiftLog
       </Link>
       <nav className="side-nav" aria-label="Primary">
-        {TABS.map((t) => (
+        {tabsFor(user).map((t) => (
           <Link key={t.href} href={t.href} className={active(pathname, t.href) ? "is-active" : ""}>
             <Icon name={t.icon} />
             {t.label}

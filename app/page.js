@@ -39,6 +39,7 @@ export default function Home() {
   const [plans, setPlans] = useState({});
   const [hasActive, setHasActive] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [name, setName] = useState("");
 
   useEffect(() => {
     const clock = new Date();
@@ -59,7 +60,11 @@ export default function Home() {
         .order("started_at", { ascending: false })
         .limit(80);
       setWorkouts((data ?? []).filter((w) => w.ended_at));
-      if (user) setSplit(await loadSplit(supabase, user.id));
+      if (user) {
+        setSplit(await loadSplit(supabase, user.id));
+        const { data: prof } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
+        if (prof?.display_name) setName(prof.display_name);
+      }
     })();
   }, [user]);
 
@@ -180,6 +185,7 @@ export default function Home() {
   return (
     <section className="page">
       <ConfigBanner />
+      <p className="home-greet">Welcome back{name ? `, ${name.split(" ")[0]}` : ""}</p>
       <p className="home-day">{when}</p>
       <div className="tiles">
         <button type="button" className="tile" onClick={() => router.push("/workout?tab=routines")}>
