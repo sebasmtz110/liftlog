@@ -93,10 +93,16 @@ function WorkoutInner() {
     setLoading(false);
   }
 
+  const dayParam = params.get("day");
+  useEffect(() => {
+    // Open on today unless a specific day was linked to. Kept apart from the
+    // data effect so an auth refresh can never move the day mid-browse.
+    setSelected(dayParam || localIso(new Date()));
+  }, [dayParam]);
+
   useEffect(() => {
     const clock = new Date();
     setNow(clock);
-    setSelected(params.get("day") || localIso(clock));
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -298,6 +304,16 @@ function WorkoutInner() {
 
   const current = routines.find((r) => r.key === routineKey) || routines[0];
   const activePlan = day ? planFor(day) : null;
+  const nextUp = (() => {
+    if (!day || day.logged || activePlan) return null;
+    for (let k = 1; k <= 7; k += 1) {
+      const entry = days[(day.index + k) % 7];
+      if (!entry?.splitDay || entry.splitDay.is_rest) continue;
+      const plan = planFor(entry);
+      return { entry, label: plan?.label || entry.splitDay.label, nextWeek: day.index + k >= 7 };
+    }
+    return null;
+  })();
 
   function rows(ids, { swapDate, performed }) {
     const byId = new Map();
@@ -417,8 +433,12 @@ function WorkoutInner() {
                 </>
               ) : (
                 <>
-                  <h2 className="day-title">Rest</h2>
-                  <p className="day-sub">{day.today ? "Today" : `${day.dow} ${day.day}`}. Choose a workout for this day.</p>
+                  <h2 className="day-title">{nextUp ? nextUp.label : "Rest day"}</h2>
+                  <p className="day-sub">
+                    {day.today ? "Today" : `${day.dow} ${day.day}`} · Rest day in your split
+                    {nextUp ? <> · Next: {nextUp.label} — {nextUp.nextWeek ? `next ${nextUp.entry.dow}` : `${nextUp.entry.dow} ${nextUp.entry.day}`}</> : ""}
+                    . Pick a workout above to train anyway.
+                  </p>
                 </>
               )}
             </>

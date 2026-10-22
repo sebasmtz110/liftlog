@@ -502,7 +502,7 @@ export default function Session() {
   return (
     <section className="page">
       <ConfigBanner />
-      <img ref={slotRef} src={photo || plateForExercise(focus?.exercise.name || "")} alt="" hidden data-muse-slot="exercise-motion" data-exercise-id={slug} />
+      <img ref={slotRef} style={{ display: "none" }} src={photo || plateForExercise(focus?.exercise.name || "")} alt="" hidden data-muse-slot="exercise-motion" data-exercise-id={slug} />
       <div className="session-top">
         <button className="btn btn-quiet" type="button" onClick={discardWorkout}>
           {confirmDiscard ? "Tap again to discard" : "Discard"}
@@ -527,7 +527,7 @@ export default function Session() {
               </p>
             </div>
           </div>
-          <div className="cover">
+          <div className="cover-full">
             <img src={photo || plateForExercise(focus.exercise.name || "")} alt="" />
           </div>
           {weightLabel === "BW" ? <p className="figure">Bodyweight</p> : <Plates pounds={pounds} />}

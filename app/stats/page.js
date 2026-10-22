@@ -38,7 +38,6 @@ function rangeStart(range, now) {
 export default function Stats() {
   const { user } = useAuth();
   const [range, setRange] = useState("week");
-  const [board, setBoard] = useState("history");
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   // All date math happens inside the effect so the render stays deterministic
@@ -230,54 +229,78 @@ export default function Stats() {
 
 
   const rangeName = RANGES.find((r) => r.id === range).label.toLowerCase();
-  const finding = !model ? "Loading the log."
-    : model.prs.length
-      ? `${model.prs.length} lift${model.prs.length === 1 ? "" : "s"} set a heavier top weight this ${rangeName}.`
-      : model.inRange.length
-        ? `${model.inRange.length} session${model.inRange.length === 1 ? "" : "s"} this ${rangeName}, none with a heavier top weight.`
-        : `No finished sessions this ${rangeName}.`;
+  const monthLabel = now ? now.toLocaleDateString(undefined, { month: "long", year: "numeric" }).toUpperCase() : "";
 
   return (
     <section className="page">
       <ConfigBanner />
-      <div className="title-row">
-        <div>
+      <div className="stats-hero">
+        <img src="/photos/progress-pullup.jpg" alt="" />
+        <div className="stats-shade" />
+        <div className="stats-copy">
+          <div className="stats-month">{monthLabel}</div>
           <h1>Progress</h1>
-          <p className="lede">{finding}</p>
-        </div>
-        <div className="seg" role="group" aria-label="Range">
-          {RANGES.map((r) => (
-            <button key={r.id} type="button" className={range === r.id ? "is-on" : ""} onClick={() => setRange(r.id)}>{r.label}</button>
-          ))}
         </div>
       </div>
 
-      <div className="seg" role="tablist" aria-label="Progress">
-        <button type="button" role="tab" aria-selected={board === "history"} onClick={() => setBoard("history")}>History</button>
-        <button type="button" role="tab" aria-selected={board === "strength"} onClick={() => setBoard("strength")}>Strength</button>
+      <div className="seg" role="group" aria-label="Range">
+        {RANGES.map((r) => (
+          <button key={r.id} type="button" className={range === r.id ? "is-on" : ""} onClick={() => setRange(r.id)}>{r.label}</button>
+        ))}
       </div>
 
-      {board === "history" ? (
-        loading ? <p className="loading">Loading…</p> : <SessionMonths workouts={workouts} />
-      ) : loading || !model ? <p className="loading">Loading…</p> : (
-        <div className="columns">
+      {loading || !model ? <p className="loading">Loading…</p> : (
+        <div className="stack" style={{ marginTop: "var(--gap)" }}>
+          <section className="panel">
+            <div className="stat-tiles">
+              <div className="stat-tile is-vol">
+                <div className="k">VOLUME</div>
+                <div className="v num">{model.volume >= 1000 ? `${(model.volume / 1000).toFixed(1).replace(/\.0$/, "")}k` : Math.round(model.volume)}</div>
+                <div className="s">lb lifted</div>
+              </div>
+              <div className="stat-tile">
+                <div className="k">WORKOUTS</div>
+                <div className="v num">{model.inRange.length}</div>
+                <div className="s">this {rangeName}</div>
+              </div>
+              <div className="stat-tile is-pr">
+                <div className="k">NEW PRs</div>
+                <div className="v num">{model.prs.length}</div>
+                <div className="s">this {rangeName}</div>
+              </div>
+            </div>
+          </section>
           <section className="panel">
             <div className="panel-head">
-              <h2>Volume</h2>
-              <span className="note num">{Math.round(model.volume).toLocaleString()} lb</span>
+              <h2>Volume · this {rangeName}</h2>
+              <span className="note">lb</span>
             </div>
             <VolumeChart series={volumeSeries} />
           </section>
-          <div className="stack">
+          {model.topEx && model.trendSets.length >= 2 ? (
             <section className="panel">
-              <div className="panel-head"><h2>Heavier this {rangeName}</h2></div>
-              {model.prs.length === 0 ? <p className="empty">No heavier top set in this range.</p> : model.prs.slice(0, 6).map(([name, b]) => (
+              <div className="panel-head">
+                <h2>{model.topEx} · top set</h2>
+                <span className="note">lb</span>
+              </div>
+              {model.trendSets.map((s, i) => (
+                <p key={i} className="note" style={{ margin: "6px 0" }}>
+                  {new Date(s.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })} — {s.weight} lb × {s.reps}
+                </p>
+              ))}
+            </section>
+          ) : null}
+          {model.prs.length > 0 ? (
+            <section className="panel">
+              <div className="panel-head"><h2>🏆 Personal records</h2></div>
+              {model.prs.slice(0, 5).map(([name, b]) => (
                 <div key={name} className="lift is-plain">
                   <span className="lift-copy"><strong>{name}</strong></span>
                   <span className="scheme num">{b.weight} lb</span>
                 </div>
               ))}
             </section>
+          ) : null}
             <section className="panel">
               <div className="panel-head">
                 <h2>Body weight</h2>
@@ -317,7 +340,10 @@ export default function Stats() {
                 </div>
               )}
             </section>
-          </div>
+            <section className="panel">
+              <div className="panel-head"><h2>History</h2></div>
+              <SessionMonths workouts={workouts} />
+            </section>
         </div>
       )}
 
@@ -374,34 +400,23 @@ function SessionMonths({ workouts }) {
 
 function VolumeChart({ series }) {
   if (!series.length) return null;
-  const w = 640, h = 200, l = 36, r = 8, t = 12, b = 24;
+  const w = 640, h = 220, l = 36, r = 8, t = 16, b = 28;
   const max = Math.max(...series.map((p) => p.v), 1);
-  const top = Math.ceil(max / 1000) * 1000 || 1000;
-  const slot = (w - l - r) / series.length;
-  const y = (v) => t + (1 - v / top) * (h - t - b);
-  const ticks = [0, top / 2, top];
-  let hot = series.length - 1;
-  for (let i = series.length - 1; i >= 0; i -= 1) if (series[i].v > 0) { hot = i; break; }
-  const tickLabel = (tick) => {
-    if (tick === 0) return "0";
-    if (top >= 10000) return `${Math.round(tick / 1000)}k`;
-    return String(Math.round(tick));
-  };
+  const x = (i) => l + (i * (w - l - r)) / Math.max(1, series.length - 1);
+  const y = (v) => t + (1 - v / max) * (h - t - b);
+  const d = series.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+  const base = (h - b).toFixed(1);
+  const area = `${d} L${x(series.length - 1).toFixed(1)},${base} L${x(0).toFixed(1)},${base} Z`;
+  const step = Math.max(1, Math.floor(series.length / 6));
   return (
-    <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Volume in pounds">
-      {ticks.map((tick) => (
-        <g key={tick}>
-          <line x1={l} x2={w - r} y1={y(tick)} y2={y(tick)} stroke="#eceae6" />
-          <text x={0} y={y(tick) + 4}>{tickLabel(tick)}</text>
-        </g>
+    <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Volume">
+      <path d={area} fill="rgba(141,59,46,0.12)" />
+      <path d={d} fill="none" stroke="#8d3b2e" strokeWidth="3" strokeLinejoin="round" />
+      {series.map((p, i) => (
+        <circle key={i} cx={x(i)} cy={y(p.v)} r="3.5" fill="#141414" stroke="#8d3b2e" strokeWidth="2" />
       ))}
-      {series.map((p, i) => {
-        const bh = Math.max(0, y(0) - y(p.v));
-        const x = l + i * slot + 4;
-        return <rect key={i} x={x} y={y(p.v)} width={Math.max(2, slot - 8)} height={bh} rx="3" fill={i === hot ? "#8d3b2e" : "#141414"} />;
-      })}
-      {series.map((p, i) => (series.length <= 12 || i % Math.ceil(series.length / 6) === 0 ? (
-        <text key={`l${i}`} x={l + i * slot + slot / 2} y={h - 6} textAnchor="middle">{p.label}</text>
+      {series.map((p, i) => (i % step === 0 ? (
+        <text key={`l${i}`} x={x(i)} y={h - 6} textAnchor="middle" fill="#8a8783" fontSize="12">{p.label}</text>
       ) : null))}
     </svg>
   );

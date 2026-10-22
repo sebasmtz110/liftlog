@@ -112,6 +112,15 @@ export default function Home() {
         exerciseIds: savedPlan.exerciseIds,
       }
     : defaultRoutine;
+  const isRestToday = Boolean(todayDay?.is_rest) && !active;
+  const nextSplitDay = (() => {
+    if (!isRestToday || !split?.days?.length) return null;
+    for (let k = 1; k <= 7; k += 1) {
+      const d = split.days[(todayIdx + k) % 7];
+      if (d && !d.is_rest) return { label: d.label, dow: DOW[(todayIdx + k) % 7] };
+    }
+    return null;
+  })();
 
   const when = now
     ? now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })
@@ -200,14 +209,16 @@ export default function Home() {
       </div>
       <section className="ready">
         <div>
-          <p className="ready-label">{loggedToday ? "Logged" : hasActive ? "In progress" : "Ready to train"}</p>
-          <h1>{active?.name || (todayDay?.is_rest ? "Rest" : DOW[todayIdx])}</h1>
+          <p className="ready-label">{loggedToday ? "Logged" : hasActive ? "In progress" : nextSplitDay ? "Up next" : "Ready to train"}</p>
+          <h1>{active?.name || (nextSplitDay ? nextSplitDay.label : DOW[todayIdx])}</h1>
           <p className="sub">
             {loggedToday
               ? "Open the finished session"
               : active?.exerciseIds?.length
                 ? `${active.exerciseIds.length} exercises · ${active.focus || ""}`
-                : "Choose a workout for this day."}
+                : nextSplitDay
+                  ? `Rest today · Next session ${nextSplitDay.dow}`
+                  : "Choose a workout for this day."}
           </p>
         </div>
         <button className="play" type="button" aria-label={loggedToday ? "View workout" : "Start workout"} onClick={onPlay} disabled={starting}>

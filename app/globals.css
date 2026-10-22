@@ -140,6 +140,38 @@ h2 { margin: 0; font-size: 16px; font-weight: 500; }
 }
 .cover img { width: 100%; height: 100%; object-fit: cover; object-position: center 22%; }
 
+/* Session exercise photo: whole picture, never cropped. */
+.cover-full {
+  margin-top: var(--gap);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--raised);
+}
+.cover-full img { width: 100%; height: auto; }
+
+/* Progress: original layout (hero, stat tiles) in the current palette. */
+.stats-hero {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 2 / 1;
+  max-height: 280px;
+  background: var(--raised);
+}
+.stats-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.stats-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(10, 10, 10, .68), transparent 55%); }
+.stats-copy { position: absolute; left: 16px; bottom: 12px; color: #fff; }
+.stats-month { font-size: 11px; letter-spacing: .12em; font-weight: 600; color: rgba(255, 255, 255, .78); }
+.stats-hero .stats-copy h1 { margin: 2px 0 0; font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: #fff; }
+
+.stat-tiles { display: flex; gap: 8px; margin-top: 10px; }
+.stat-tile { flex: 1; min-width: 0; border-radius: 10px; padding: 12px; color: #fff; background: linear-gradient(135deg, #2a2926, #141414); }
+.stat-tile.is-vol { background: linear-gradient(135deg, #a34a3a, #8d3b2e); }
+.stat-tile.is-pr { background: linear-gradient(135deg, #b03a2e, #9b2c2c); }
+.stat-tile .k { font-size: 10px; letter-spacing: .08em; font-weight: 700; opacity: .8; }
+.stat-tile .v { font-size: 22px; font-weight: 800; margin-top: 4px; }
+.stat-tile .s { font-size: 11px; opacity: .85; margin-top: 2px; }
+
 .bays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
