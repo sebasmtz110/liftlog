@@ -334,3 +334,14 @@ a.log { text-decoration: none; color: inherit; }
 .quiz-opt.is-on { border-color: var(--text); }
 .block-btn.is-line { background: transparent; border: 1px solid var(--control); color: var(--text); }
 .quiz-back { margin-top: 14px; }
+
+/* Health rings: steps / sleep / exercise / stand against their daily targets. */
+.rings-panel { margin-top: 4px; }
+.rings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ring { text-align: center; min-width: 0; }
+.ring svg { width: 68px; height: 68px; display: block; margin: 0 auto; }
+.ring-track { fill: none; stroke: var(--raised); stroke-width: 7; }
+.ring-arc { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 600ms ease; }
+.ring-value { font-size: 13px; font-weight: 700; fill: var(--text); }
+.ring-name { margin-top: 6px; font-size: 12px; font-weight: 600; }
+.ring-sub { font-size: 11px; color: var(--muted); }
