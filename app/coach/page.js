@@ -5,6 +5,7 @@ import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
 import { loadSplit } from "../../lib/presets";
 import { answerCoach, QUICK } from "../../lib/coach";
+import { volumeOf } from "../../lib/volume";
 import ConfigBanner from "../components/ConfigBanner";
 
 function mondayOf(d) {
@@ -75,7 +76,7 @@ export default function Coach() {
         todayLabel: today && !today.is_rest ? today.label : null,
         isRest: !today || today.is_rest,
         weekWorkouts: week.length,
-        weekVolume: wsets.reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0),
+        weekVolume: volumeOf(wsets),
         weekSets: wsets.length,
         goal: profile?.weekly_goal ?? 4,
         streak,
@@ -100,48 +101,31 @@ export default function Coach() {
   const suggestions = useMemo(() => QUICK, []);
 
   return (
-    <>
+    <section className="page">
       <ConfigBanner />
-      <header className="screen-head">
-        <p className="kicker">COACH</p>
-        <h1 className="large-title">Ask anything</h1>
-      </header>
-
-      <div className="screen-body">
-        {loading ? (
-          <p className="loading">Loading…</p>
-        ) : (
-          <>
-            <div className="chat-wrap">
-              {messages.map((m, i) => (
-                <div key={i} className={`chat-bubble${m.me ? " me" : " them"}`}>{m.text}</div>
-              ))}
-            </div>
-            <div className="spacer-12" />
-            <div className="chip-row">
-              {suggestions.map((s) => (
-                <button key={s} className="chip-btn" onClick={() => ask(s)}>{s}</button>
-              ))}
-            </div>
-            <div className="spacer-12" />
-            <form
-              className="chat-input-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                ask(input);
-              }}
-            >
-              <input
-                className="input"
-                placeholder="Ask your coach…"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-              />
-              <button className="btn btn-filled" type="submit">Send</button>
-            </form>
-          </>
-        )}
-      </div>
-    </>
+      <h1>Coach</h1>
+      <p className="lede">Answers come from this week&apos;s log. Nothing is sent to a model.</p>
+      {loading ? <p className="loading">Loading the log…</p> : (
+        <>
+          <div className="chat" style={{ marginTop: 16 }}>
+            {messages.map((m, i) => (
+              <div key={i} className={`bubble${m.me ? " me" : ""}`}>{m.text}</div>
+            ))}
+          </div>
+          <div className="chips">
+            {suggestions.map((s) => (
+              <button key={s} type="button" onClick={() => ask(s)}>{s}</button>
+            ))}
+          </div>
+          <form className="ask" onSubmit={(e) => { e.preventDefault(); ask(input); }}>
+            <label className="field" style={{ flex: 1, margin: 0 }}>
+              <span className="note">Question</span>
+              <input className="input" value={input} onChange={(e) => setInput(e.target.value)} />
+            </label>
+            <button className="btn btn-primary" type="submit" style={{ alignSelf: "end" }}>Send</button>
+          </form>
+        </>
+      )}
+    </section>
   );
 }

@@ -1,0 +1,72 @@
+[
+ {
+  "file": "design-draft/photos/bench-press.jpg",
+  "media": "image",
+  "ref": "commons:84104805",
+  "title": "Bench Press",
+  "creator": "Aditya Oberai",
+  "creatorUrl": null,
+  "date": "2019-06-11",
+  "license": "CC BY-SA 4.0",
+  "licenseCode": "by-sa",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+  "creditRequired": true,
+  "page": "https://commons.wikimedia.org/wiki/File:Bench_Press.jpg",
+  "via": "Wikimedia Commons",
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/Bench_Press.jpg/1280px-Bench_Press.jpg",
+  "width": 1280,
+  "height": 960,
+  "bytes": 554564,
+  "credit": "\"Bench Press\" by Aditya Oberai, CC BY-SA 4.0, via Wikimedia Commons",
+  "notes": [
+   "Share-alike: an altered version (recoloured, combined with other pictures) must be shared under the same licence."
+  ],
+  "saved": "2026-10-22T15:55:08.569Z"
+ },
+ {
+  "file": "design-draft/photos/girl-doing-dumbbell-shoulder-press-02.jpg",
+  "media": "image",
+  "ref": "commons:141590150",
+  "title": "Girl doing dumbbell shoulder press 02",
+  "creator": "Tyler Read",
+  "creatorUrl": null,
+  "date": "2019-07-14",
+  "license": "CC BY 2.0",
+  "licenseCode": "by",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+  "creditRequired": true,
+  "page": "https://commons.wikimedia.org/wiki/File:Girl_doing_dumbbell_shoulder_press_02.jpg",
+  "via": "Wikimedia Commons",
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/Girl_doing_dumbbell_shoulder_press_02.jpg/1280px-Girl_doing_dumbbell_shoulder_press_02.jpg",
+  "width": 1280,
+  "height": 853,
+  "bytes": 241874,
+  "credit": "\"Girl doing dumbbell shoulder press 02\" by Tyler Read, CC BY 2.0, via Wikimedia Commons",
+  "notes": [],
+  "saved": "2026-10-22T15:55:08.765Z"
+ },
+ {
+  "file": "design-draft/photos/girl-doing-dumbbell-shoulder-press.jpg",
+  "media": "image",
+  "ref": "commons:94030704",
+  "title": "Girl doing dumbbell shoulder press",
+  "creator": "Trainer Academy",
+  "creatorUrl": null,
+  "date": "2018-07-24",
+  "license": "CC BY-SA 3.0",
+  "licenseCode": "by-sa",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+  "creditRequired": true,
+  "page": "https://commons.wikimedia.org/wiki/File:Girl_doing_dumbbell_shoulder_press.jpg",
+  "via": "Wikimedia Commons",
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Girl_doing_dumbbell_shoulder_press.jpg/1280px-Girl_doing_dumbbell_shoulder_press.jpg",
+  "width": 1280,
+  "height": 853,
+  "bytes": 248658,
+  "credit": "\"Girl doing dumbbell shoulder press\" by Trainer Academy, CC BY-SA 3.0, via Wikimedia Commons",
+  "notes": [
+   "Share-alike: an altered version (recoloured, combined with other pictures) must be shared under the same licence."
+  ],
+  "saved": "2026-10-22T15:55:08.940Z"
+ }
+]

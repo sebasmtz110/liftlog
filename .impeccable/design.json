@@ -1,0 +1,18 @@
+{
+  "name": "LiftLog",
+  "northStar": "Today is the platform with the safety stripe. A session is the bar being loaded.",
+  "breakpoints": { "phone": 899, "desktop": 900 },
+  "elevation": {
+    "sheet": "0 12px 28px rgba(26, 33, 28, 0.18)"
+  },
+  "motion": {
+    "press": "translateY(1px) on active controls",
+    "reduced": "no entrance motion"
+  },
+  "rules": [
+    "Yellow stripe marks today and rest only",
+    "Plate colors appear only beside a working weight",
+    "One filled button per screen",
+    "The exercise library keeps its own design and Inter"
+  ]
+}

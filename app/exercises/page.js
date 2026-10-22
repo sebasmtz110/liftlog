@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../../lib/supabase";
-import { EXERCISES, FILTERS, catalogById, ensureCatalog } from "../../lib/catalog";
+import { useSearchParams } from "next/navigation";
+import { EXERCISES, FILTERS, catalogById, ensureCatalog, matchesFilter } from "../../lib/catalog";
+import { loadDayPlans, saveDayPlan } from "../../lib/dayPlans";
 import { useAuth } from "../components/AuthContext";
 import ConfigBanner from "../components/ConfigBanner";
 import Icon from "../components/Icon";
@@ -73,7 +75,19 @@ function muscleMarkup(ex) {
 
 
 export default function Exercises() {
+  return (
+    <Suspense fallback={<section className="page"><p className="loading">Loading…</p></section>}>
+      <ExercisesInner />
+    </Suspense>
+  );
+}
+
+function ExercisesInner() {
   const router = useRouter();
+  const params = useSearchParams();
+  const swapDate = params.get("swap");
+  const swapIndex = Number(params.get("index") || 0);
+  const openName = params.get("open");
   const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
@@ -92,14 +106,41 @@ export default function Exercises() {
     });
   }, [user]);
 
+  useEffect(() => {
+    if (!openName) return;
+    const hit = EXERCISES.find((e) => e.name === openName);
+    if (hit) setOpenId(hit.id);
+  }, [openName]);
+
+  const taken = useMemo(() => {
+    if (!swapDate || !user) return new Set();
+    const plan = loadDayPlans(user.id)[swapDate];
+    return new Set(plan?.exerciseIds || []);
+  }, [swapDate, user, ids]);
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return EXERCISES.filter((e) => {
-      const facet = filter === "all" || e.filter === filter;
+      const facet = matchesFilter(e, filter);
       const text = !q || `${e.name} ${e.region} ${e.equipment} ${e.type}`.toLowerCase().includes(q);
+      if (swapDate && taken.has(ids[e.name.toLowerCase()])) return false;
       return facet && text;
     });
-  }, [query, filter]);
+  }, [query, filter, swapDate, taken, ids]);
+
+  function openRow(ex) {
+    if (swapDate && user) {
+      const exerciseId = ids[ex.name.toLowerCase()];
+      const plan = loadDayPlans(user.id)[swapDate];
+      if (!exerciseId || !plan) return;
+      const exerciseIds = plan.exerciseIds.slice();
+      exerciseIds[swapIndex] = exerciseId;
+      saveDayPlan(user.id, swapDate, { ...plan, exerciseIds });
+      router.push(`/workout?day=${swapDate}`);
+      return;
+    }
+    setOpenId(ex.id);
+  }
 
   const open = openId ? catalogById(openId) : null;
 
@@ -147,7 +188,7 @@ export default function Exercises() {
     const cues = open.cues || open.steps;
     const cue = phase === "setup" ? cues[0] : phase === "movement" ? (cues[1] || cues[0]) : cues.at(-1);
     return (
-      <section className={`screen screen-fill motion${open.cinematic ? "" : " is-framed"} is-${phase}`}>
+      <section className={`library-keep screen screen-fill motion${open.cinematic ? "" : " is-framed"} is-${phase}`}>
         <div className="motion-stage" id="motion-slot" data-muse-slot="exercise-motion" data-exercise-id={open.id}>
           <img src={open.motion || open.still || open.thumb} alt={open.motionName || open.name} />
           <div className="motion-shade" />
@@ -183,7 +224,7 @@ export default function Exercises() {
 
   if (open) {
     return (
-      <section className="screen" data-screen="detail">
+      <section className="library-keep screen" data-screen="detail">
         <header className="subhead">
           <button type="button" aria-label="Back" onClick={() => { setOpenId(null); setTab("Instructions"); }}>
             <Icon name="back" />
@@ -250,34 +291,28 @@ export default function Exercises() {
   }
 
   return (
-    <section className="screen" data-screen="library">
+    <section className="page draft-lib">
       <ConfigBanner />
-      <header className="page-head library-head">
-        <p className="eyebrow">Build a stronger you</p>
-        <h1>Exercise<br />Library</h1>
-      </header>
+      {swapDate ? <button className="text-btn" type="button" onClick={() => router.push(`/workout?day=${swapDate}`)}>Back to day</button> : null}
+      <h1>{swapDate ? "Switch exercise" : "Library"}</h1>
       <form className="search-wrap" role="search" onSubmit={(e) => e.preventDefault()}>
         <label className="search">
-          <Icon name="search" />
+          <img src="/photos/split-bells.jpg" alt="" />
           <input type="search" placeholder="Search exercises..." value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" enterKeyHint="search" />
         </label>
       </form>
       <div className="chips">
         {FILTERS.map(([id, label]) => (
-          <button key={id} type="button" className={filter === id ? "is-on" : ""} onClick={() => setFilter(id)}>{label}</button>
+          <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}</button>
         ))}
       </div>
-      <div className="stack">
+      <div>
         {rows.length === 0 ? (
-          <div className="empty">
-            <p>No exercises found</p>
-            <button type="button" onClick={() => { setQuery(""); setFilter("all"); }}>Clear search</button>
-          </div>
+          <p className="empty">No exercise matches that.</p>
         ) : rows.map((e) => (
-          <button key={e.id} className="ex-row" type="button" onClick={() => setOpenId(e.id)}>
+          <button key={e.id} className="lib" type="button" onClick={() => openRow(e)}>
             <img className="thumb" src={e.thumb} alt="" />
-            <span className="ex-copy"><strong>{e.name}</strong><small>{e.region} · {e.type}</small></span>
-            <Icon name="chevron" />
+            <span><span className="name">{e.name}</span><span className="eq">{e.primary} · {e.equipment}</span></span>
           </button>
         ))}
       </div>

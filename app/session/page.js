@@ -6,7 +6,9 @@ import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY, 
 import { catalogByName } from "../../lib/catalog";
 import { visualForExercise, plateForExercise } from "../../lib/exerciseVisuals";
 import ConfigBanner from "../components/ConfigBanner";
+import { volumeOf } from "../../lib/volume";
 import Icon from "../components/Icon";
+import Plates from "../components/Plates";
 
 const REST_DEFAULT = 90;
 const RING_C = 326.73;
@@ -50,6 +52,7 @@ export default function Session() {
   const [orderOpen, setOrderOpen] = useState(false);
   const [drag, setDrag] = useState(null); // {id, index, target, dy, h} while reordering
   const [logging, setLogging] = useState(false);
+  const [history, setHistory] = useState([]);
   const listRef = useRef(null);
   const dragState = useRef(null);
   const justDraggedRef = useRef(false);
@@ -136,6 +139,21 @@ export default function Session() {
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (!isConfigured) return;
+    (async () => {
+      const supabase = await getSupabase();
+      if (!supabase) return;
+      const { data } = await supabase
+        .from("workouts")
+        .select("started_at, ended_at, sets(exercise_id, reps, weight)")
+        .not("ended_at", "is", null)
+        .order("started_at", { ascending: false })
+        .limit(40);
+      if (data) setHistory(data);
+    })();
   }, []);
 
   // Mirror the exercise order for use inside pointer handlers.
@@ -409,21 +427,18 @@ export default function Session() {
     return undefined;
   }
 
+
   if (loading) {
-    return <section className="screen screen-fill workout"><p className="loading">Loading…</p></section>;
+    return <section className="page"><p className="loading">Loading the session…</p></section>;
   }
 
   if (!workoutId) {
     return (
-      <section className="screen screen-fill workout">
+      <section className="page">
         <ConfigBanner />
-        <div className="workout-panel">
-          <header className="wk-top">
-            <button className="icon-btn light" type="button" aria-label="Close" onClick={() => router.push("/")}><Icon name="close" /></button>
-            <span />
-          </header>
-          <div className="wk-title"><h1>No active workout</h1><p>Start one from Home or Workouts.</p></div>
-        </div>
+        <h1>No session open</h1>
+        <p className="lede">Start one from Today or the split.</p>
+        <button className="btn btn-primary" type="button" onClick={() => router.push("/")}>Back to today</button>
       </section>
     );
   }
@@ -432,20 +447,28 @@ export default function Session() {
   const draft = (focus && drafts[focus.exercise.id]) ?? { reps: "8", weight: "45" };
   const planned = meta?.sets || Math.max(exSets.length + 1, 4);
   const setNum = Math.min(planned, exSets.length + 1);
-  const volume = sets.reduce((s, x) => s + (Number(x.weight) || 0) * (x.reps || 0), 0);
-  const elapsed = startedAt ? Math.floor((now - new Date(startedAt).getTime()) / 1000) : 0;
-  const ringLeft = restLeft ?? restDur;
-  const ringFrac = restOn || showRest ? ringLeft / restDur : 1;
-  const dash = RING_C * (1 - Math.max(0, Math.min(1, ringFrac)));
+  const volume = volumeOf(sets);
+  const elapsed = startedAt && now ? Math.floor((now - new Date(startedAt).getTime()) / 1000) : 0;
   const photo = focus ? visualForExercise(focus.exercise.name) : null;
   const weightLabel = meta?.bodyweight && Number(draft.weight) < 0.5 ? "BW" : (draft.weight || "0");
+  const pounds = Number(draft.weight);
+  let previous = null;
+  if (focus) {
+    for (const w of history) {
+      const rows = (w.sets ?? []).filter((s) => s.exercise_id === focus.exercise.id);
+      if (!rows.length) continue;
+      const row = rows[rows.length - 1];
+      previous = { weight: Number(row.weight) || 0, reps: row.reps ?? 0 };
+      break;
+    }
+  }
 
   if (motionOpen && focus) {
     const phase = motionTime < 8 ? "setup" : motionTime < 22 ? "movement" : "finish";
     const cues = meta?.cues || meta?.steps || [focus.exercise.name];
     const cue = phase === "setup" ? cues[0] : phase === "movement" ? (cues[1] || cues[0]) : cues.at(-1);
     return (
-      <section className={`screen screen-fill motion${cinematic ? "" : " is-framed"} is-${phase}`}>
+      <section className={`library-keep screen screen-fill motion${cinematic ? "" : " is-framed"} is-${phase}`}>
         <div className="motion-stage" ref={motionRef} data-muse-slot="exercise-motion" data-exercise-id={slug}>
           <img src={meta?.motion || meta?.still || plateForExercise(focus.exercise.name)} alt={meta?.motionName || focus.exercise.name} />
           <div className="motion-shade" />
@@ -467,7 +490,7 @@ export default function Session() {
           <div className="phases">
             {["Setup", "Movement", "Finish"].map((label, i) => {
               const p = ["setup", "movement", "finish"][i];
-              return <button key={p} type="button" className={phase === p ? "is-on" : ""} onClick={() => setMotionTime([2, 14, 26][i])}>{i + 1} {label}</button>;
+              return <button key={p} type="button" className={phase === p ? "is-on" : ""} onClick={() => setMotionTime([2, 14, 26][i])}>{label}</button>;
             })}
           </div>
           <p className="cue">{cue}</p>
@@ -476,187 +499,143 @@ export default function Session() {
     );
   }
 
-  if (logOpen && focus) {
-    return (
-      <section className="screen screen-fill log">
-        <header className="log-top">
-          <button className="icon-btn light" type="button" aria-label="Close" onClick={() => setLogOpen(false)}><Icon name="close" /></button>
-          <div>
-            <h1>{focus.exercise.name}</h1>
-            <p>Set {setNum} of {planned}</p>
-          </div>
-        </header>
-        <div className="log-card">
-          <div className="log-field">
-            <span>Weight (lb)</span>
-            <div className="log-step">
-              <button type="button" aria-label="Decrease weight" onClick={() => bump("weight", -5)}>−</button>
-              <button className={`log-value${metric === "weight" ? " is-on" : ""}`} type="button" onClick={() => setMetric("weight")}>{draft.weight || "0"}</button>
-              <button type="button" aria-label="Increase weight" onClick={() => bump("weight", 5)}>+</button>
-            </div>
-          </div>
-          <div className="log-field">
-            <span>Reps</span>
-            <div className="log-step">
-              <button type="button" aria-label="Decrease reps" onClick={() => bump("reps", -1)}>−</button>
-              <button className={`log-value${metric === "reps" ? " is-on" : ""}`} type="button" onClick={() => setMetric("reps")}>{draft.reps || "0"}</button>
-              <button type="button" aria-label="Increase reps" onClick={() => bump("reps", 1)}>+</button>
-            </div>
-          </div>
-          <button className="btn btn-mint btn-block" type="button" onClick={logSet} disabled={logging || !parseInt(draft.reps, 10)}>{logging ? "Logging…" : "Log Set"}</button>
-        </div>
-        <div className="keys">
-          {["1","2","3","4","5","6","7","8","9"].map((d) => <button key={d} type="button" onClick={() => padKey(d)}>{d}</button>)}
-          <span />
-          <button type="button" onClick={() => padKey("0")}>0</button>
-          <button type="button" aria-label="Delete" onClick={() => padKey("back")}><Icon name="backspace" /></button>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className={`screen screen-fill workout${cinematic ? "" : " is-studio"}`}>
+    <section className="page">
       <ConfigBanner />
-      <img
-        ref={slotRef}
-        className="workout-bg"
-        src={photo || "/assets/gym-dark.jpg"}
-        alt=""
-        data-muse-slot="exercise-motion"
-        data-exercise-id={slug}
-      />
-      <div className="workout-fade" />
-      {!cinematic && focus && (
-        <div className="workout-plate">
-          <img src={plateForExercise(focus.exercise.name)} alt={focus.exercise.name} />
+      <img ref={slotRef} src={photo || plateForExercise(focus?.exercise.name || "")} alt="" hidden data-muse-slot="exercise-motion" data-exercise-id={slug} />
+      <div className="session-top">
+        <button className="btn btn-quiet" type="button" onClick={discardWorkout}>
+          {confirmDiscard ? "Tap again to discard" : "Discard"}
+        </button>
+        <div className="title-actions">
+          <button className="btn btn-line" type="button" onClick={() => setOrderOpen(true)}>Order</button>
+          <button className="btn btn-line" type="button" onClick={finishWorkout} disabled={finishing}>
+            {finishing ? "Saving…" : "Finish"}
+          </button>
         </div>
-      )}
-      <div className="workout-panel">
-        <header className="wk-top">
-          <button
-            className="icon-btn light"
-            type="button"
-            aria-label="Discard workout"
-            onClick={discardWorkout}
-            style={confirmDiscard ? { background: "#d92d20", color: "#fff", width: "auto", padding: "0 14px", borderRadius: 20, fontSize: 13, fontWeight: 700 } : {}}
-          >
-            {confirmDiscard ? "Tap again to discard" : <Icon name="close" />}
-          </button>
-          <button className="icon-btn light" type="button" aria-label="Reorder exercises" onClick={() => setOrderOpen(true)}>
-            <Icon name="list" />
-          </button>
-          <button className="icon-btn light" type="button" onClick={finishWorkout} disabled={finishing} aria-label="Finish workout">
-            <Icon name="check" />
-          </button>
-        </header>
-        {focus ? (
-          <>
-            <div className="wk-title">
-              <h1>{focus.exercise.name}</h1>
-              <p id="wk-meta">{meta ? `${meta.region} · ${meta.type}` : (focus.exercise.muscle_group || "Exercise")}</p>
-            </div>
-            <div className="wk-progress">
-              <div className="track"><span style={{ width: `${Math.min(100, (setNum / planned) * 100)}%` }} /></div>
-              <button type="button" onClick={() => setPickerOpen(true)}>{setNum}/{planned}</button>
-            </div>
-            <div className="wk-spacer" role="presentation" onClick={() => setMotionOpen(true)} />
-            <div className="wk-dock">
-              <p className="wk-set">Set {setNum}/{planned}</p>
-              <button className={`wk-weight metric-btn${metric === "weight" ? " is-selected" : ""}`} type="button" onClick={() => { setMetric("weight"); setLogOpen(true); }}>
-                <strong>{weightLabel}</strong>{weightLabel === "BW" ? null : <small>lb</small>}
-              </button>
-              <button className={`wk-reps metric-btn${metric === "reps" ? " is-selected" : ""}`} type="button" onClick={() => { setMetric("reps"); setLogOpen(true); }}>
-                <strong>{draft.reps || "0"}</strong> <span>reps</span>
-              </button>
-              <div className="ring-row">
-                <button className="step" type="button" aria-label="Decrease" onClick={() => nudge(-1)}><Icon name="minus" /></button>
-                <button className="ring ring-sm" type="button" aria-label="Rest timer" onClick={() => { if (restLeft == null) { restEndsRef.current = Date.now() + restDur * 1000; setRestLeft(restDur); setRestOn(true); } setShowRest(true); }}>
-                  <svg viewBox="0 0 120 120" aria-hidden="true">
-                    <defs>
-                      <linearGradient id="mintGradA" x1="0" y1="1" x2="1" y2="0">
-                        <stop offset="0" stopColor="#D92D20" />
-                        <stop offset="1" stopColor="#FF5A4F" />
-                      </linearGradient>
-                    </defs>
-                    <circle className="ring-track" cx="60" cy="60" r="52" />
-                    <circle className="ring-value" cx="60" cy="60" r="52" strokeDasharray={RING_C} strokeDashoffset={dash} />
-                  </svg>
-                  <span className="ring-label"><strong>{clock(ringLeft)}</strong><small>Rest Time</small></span>
-                </button>
-                <button className="step" type="button" aria-label="Increase" onClick={() => nudge(1)}><Icon name="plus" /></button>
-              </div>
-              <div className="session-stats">
-                <div><strong>{fmtVol(volume)}</strong><span>Volume</span></div>
-                <div><strong>{sets.length}</strong><span>Sets</span></div>
-                <div><strong>{clock(elapsed)}</strong><span>Elapsed</span></div>
-              </div>
-              <button className="btn btn-white btn-block" type="button" onClick={() => setLogOpen(true)} disabled={logging}>Log Set</button>
-            </div>
-          </>
-        ) : (
-          <div className="wk-title">
-            <h1>Add an exercise</h1>
-            <button className="btn btn-white" type="button" onClick={() => setPickerOpen(true)} style={{ marginTop: 16 }}>Choose exercise</button>
-          </div>
-        )}
       </div>
 
-      {showRest && focus && (
-        <section className="screen screen-fill rest" role="dialog" aria-label="Rest timer">
-          <img className="rest-bg" src="/assets/gym-dark.jpg" alt="" />
-          <div className="rest-shade" />
-          <header className="rest-top">
-            <button className="icon-btn light" type="button" aria-label="Close rest" onClick={() => setShowRest(false)}><Icon name="close" /></button>
-            <h1>Rest Timer</h1>
-            <span />
-          </header>
-          <button className="ring ring-lg" type="button" aria-label={restOn ? "Pause rest" : "Resume rest"} onClick={() => setRestOn((v) => !v)}>
-            <svg viewBox="0 0 200 200" aria-hidden="true">
-              <defs>
-                <linearGradient id="mintGradB" x1="0" y1="1" x2="1" y2="0">
-                  <stop offset="0" stopColor="#D92D20" />
-                  <stop offset="0.55" stopColor="#F0372D" />
-                  <stop offset="1" stopColor="#FF5A4F" />
-                </linearGradient>
-              </defs>
-              <circle className="ring-track" cx="100" cy="100" r="78" />
-              <circle className="ring-value" id="rest-ring" cx="100" cy="100" r="78" strokeDasharray="490.09" strokeDashoffset={490.09 * (1 - Math.max(0, Math.min(1, ringLeft / restDur)))} />
-            </svg>
-            <span className="ring-label">
-              <strong>{clock(ringLeft)}</strong>
-              <small>{restOn ? "Tap to pause" : "Tap to resume"}</small>
-            </span>
-          </button>
-          <div className="rest-next">
-            <p>Next Set</p>
-            <h2>{focus.exercise.name}</h2>
-            <p>{draft.reps || "—"} reps · {weightLabel === "BW" ? "BW" : `${draft.weight || "—"} lb`}</p>
+      {focus ? (
+        <>
+          <div className="title-row" style={{ marginTop: 12 }}>
+            <div>
+              <h1>{focus.exercise.name}</h1>
+              <p className="lede">
+                Set {setNum} of {planned}
+                {previous ? ` · Last time ${previous.weight} lb × ${previous.reps}` : " · No earlier set in the log"}
+                {" · "}{clock(elapsed)} in
+              </p>
+            </div>
           </div>
-          <button className="btn btn-white" type="button" onClick={() => { setShowRest(false); setPickerOpen(true); }} style={{ marginBottom: 8 }}>Switch Exercise</button>
-          <button className="btn btn-ghost" type="button" onClick={() => { setRestOn(false); setRestLeft(null); setShowRest(false); }}>Skip Rest</button>
-        </section>
+          <div className="cover">
+            <img src={photo || plateForExercise(focus.exercise.name || "")} alt="" />
+          </div>
+          {weightLabel === "BW" ? <p className="figure">Bodyweight</p> : <Plates pounds={pounds} />}
+          <div className="pair">
+            <div className={`metric${metric === "weight" ? " is-on" : ""}`}>
+              <span>Weight</span>
+              <div className="stepper">
+                <button className="step" type="button" aria-label="Decrease weight" onClick={() => { setMetric("weight"); bump("weight", -5); }}>−</button>
+                <button className="figure" type="button" onClick={() => { setMetric("weight"); setLogOpen(true); }}>
+                  {weightLabel}{weightLabel === "BW" ? null : <small>lb</small>}
+                </button>
+                <button className="step" type="button" aria-label="Increase weight" onClick={() => { setMetric("weight"); bump("weight", 5); }}>+</button>
+              </div>
+            </div>
+            <div className={`metric${metric === "reps" ? " is-on" : ""}`}>
+              <span>Reps</span>
+              <div className="stepper">
+                <button className="step" type="button" aria-label="Decrease reps" onClick={() => { setMetric("reps"); bump("reps", -1); }}>−</button>
+                <button className="figure" type="button" onClick={() => { setMetric("reps"); setLogOpen(true); }}>{draft.reps || "0"}</button>
+                <button className="step" type="button" aria-label="Increase reps" onClick={() => { setMetric("reps"); bump("reps", 1); }}>+</button>
+              </div>
+            </div>
+          </div>
+          <div className="title-actions" style={{ marginTop: 14 }}>
+            <button className="btn btn-primary" type="button" onClick={logSet} disabled={logging || !parseInt(draft.reps, 10)}>
+              {logging ? "Logging…" : "Log set"}
+            </button>
+            <button className="btn btn-line" type="button" onClick={() => { if (restLeft == null) { restEndsRef.current = Date.now() + restDur * 1000; setRestLeft(restDur); setRestOn(true); } setShowRest(true); }}>
+              Rest {clock(restLeft ?? restDur)}
+            </button>
+            <button className="btn btn-line" type="button" onClick={() => setMotionOpen(true)}>Movement</button>
+            <button className="btn btn-quiet" type="button" onClick={() => router.push("/coach")}>Coach</button>
+          </div>
+          {showRest && (
+            <div className="rest" role="region" aria-label="Rest">
+              <div className="stripe" />
+              <p className="figure">{clock(restLeft ?? 0)}</p>
+              <p>{restOn ? "Resting before the next set." : "Rest is paused."}</p>
+              <div className="title-actions" style={{ marginTop: 10 }}>
+                <button className="btn btn-line" type="button" onClick={() => setRestOn((v) => !v)}>{restOn ? "Pause" : "Resume"}</button>
+                <button className="btn btn-line" type="button" onClick={() => nudge(1)}>+15s</button>
+                <button className="btn btn-line" type="button" onClick={() => nudge(-1)}>−15s</button>
+                <button className="btn btn-quiet" type="button" onClick={() => { setRestOn(false); setRestLeft(null); setShowRest(false); }}>Skip rest</button>
+              </div>
+            </div>
+          )}
+          {logOpen && (
+            <div className="panel" style={{ marginTop: 14 }}>
+              <div className="panel-head">
+                <h2>Type the {metric}</h2>
+                <button className="text-btn" type="button" onClick={() => setLogOpen(false)}>Close</button>
+              </div>
+              <div className="keys">
+                {["1","2","3","4","5","6","7","8","9","0"].map((d) => <button key={d} type="button" onClick={() => padKey(d)}>{d}</button>)}
+                <button type="button" aria-label="Delete" onClick={() => padKey("back")}>Delete</button>
+                <button type="button" onClick={logSet}>Log set</button>
+              </div>
+            </div>
+          )}
+          {exSets.length > 0 && (
+            <section className="panel" style={{ marginTop: 14 }}>
+              <div className="panel-head"><h2>Logged</h2><span className="note num">{Math.round(volume).toLocaleString()} lb</span></div>
+              {exSets.map((s) => (
+                <div key={s.id} className="lift">
+                  <span className="lift-copy"><strong>Set {s.set_number}</strong></span>
+                  <span className="scheme num">{s.weight} lb × {s.reps}</span>
+                </div>
+              ))}
+            </section>
+          )}
+          <section className="panel queue" style={{ marginTop: 14 }}>
+            <div className="panel-head">
+              <h2>Queue</h2>
+              <button className="text-btn" type="button" onClick={() => setPickerOpen(true)}>Add exercise</button>
+            </div>
+            {grouped.map((g) => (
+              <button
+                key={g.exercise.id}
+                type="button"
+                className={g.exercise.id === focus.exercise.id ? "is-current" : ""}
+                onClick={() => setFocusId(g.exercise.id)}
+              >
+                <span>
+                  <strong>{g.exercise.name}</strong>
+                  <small>{`${g.sets.length} ${g.sets.length === 1 ? "set" : "sets"} logged`}</small>
+                </span>
+              </button>
+            ))}
+          </section>
+        </>
+      ) : (
+        <>
+          <h1>Add an exercise</h1>
+          <p className="lede">The session has no lifts yet.</p>
+          <button className="btn btn-primary" type="button" onClick={() => setPickerOpen(true)}>Choose exercise</button>
+        </>
       )}
 
       {orderOpen && (
         <div className="sheet">
           <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => setOrderOpen(false)} />
           <div className="sheet-card" role="dialog" aria-modal="true" aria-label="Exercise order">
-            <div className="grab" />
             <header>
               <h2>Exercise order</h2>
-              <button type="button" onClick={() => setOrderOpen(false)}>Done</button>
+              <button className="text-btn" type="button" onClick={() => setOrderOpen(false)}>Done</button>
             </header>
-            <p className="footnote" style={{ margin: "2px 0 10px" }}>
-              Hold the handle and drag to reorder. Tap an exercise to switch to it.
-            </p>
-            <div
-              ref={listRef}
-              className="reorder-list"
-              onPointerMove={moveDrag}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
-            >
+            <p className="note">Hold the handle and drag. Tap a name to switch to it.</p>
+            <div ref={listRef} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
               {orderList.map((g, i) => {
                 const done = g.sets.length;
                 const isDrag = drag && drag.id === g.exercise.id;
@@ -664,7 +643,7 @@ export default function Session() {
                   <div
                     key={g.exercise.id}
                     data-exid={g.exercise.id}
-                    className={`reorder-row${isDrag ? " is-dragging" : ""}${g.exercise.id === focusId ? " is-focus" : ""}`}
+                    className="reorder-row"
                     style={reorderRowStyle(i, g.exercise.id)}
                     onClick={() => {
                       if (justDraggedRef.current) return;
@@ -672,20 +651,13 @@ export default function Session() {
                       setOrderOpen(false);
                     }}
                   >
-                    <span
-                      className="drag-handle"
-                      role="button"
-                      aria-label={`Drag to reorder ${g.exercise.name}`}
-                      onPointerDown={(e) => startDrag(e, g.exercise.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <span className="drag-handle" role="button" aria-label={`Drag to reorder ${g.exercise.name}`} onPointerDown={(e) => startDrag(e, g.exercise.id)} onClick={(e) => e.stopPropagation()}>
                       <Icon name="grip" />
                     </span>
-                    <span className="reorder-info">
+                    <span className="lift-copy">
                       <strong>{g.exercise.name}</strong>
-                      <small>{done} set{done === 1 ? "" : "s"} · {g.exercise.muscle_group || "Exercise"}</small>
+                      <small>{`${done} ${done === 1 ? "set" : "sets"}`}</small>
                     </span>
-                    {g.exercise.id === focusId && <span className="reorder-current">Current</span>}
                   </div>
                 );
               })}
@@ -697,21 +669,20 @@ export default function Session() {
       {pickerOpen && (
         <div className="sheet">
           <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => { setPickerOpen(false); setQuery(""); }} />
-          <div className="sheet-card" role="dialog" aria-modal="true">
-            <div className="grab" />
+          <div className="sheet-card" role="dialog" aria-modal="true" aria-label="Add exercise">
             <header>
-              <h2>Exercises</h2>
-              <button type="button" onClick={() => { setPickerOpen(false); setQuery(""); }}>Close</button>
+              <h2>Add exercise</h2>
+              <button className="text-btn" type="button" onClick={() => { setPickerOpen(false); setQuery(""); }}>Close</button>
             </header>
-            <label className="search" style={{ margin: "10px 0" }}>
-              <Icon name="search" />
-              <input value={query} placeholder="Search exercises..." onChange={(e) => setQuery(e.target.value)} autoCapitalize="off" autoCorrect="off" spellCheck={false} enterKeyHint="search" />
+            <label className="field">
+              <span>Search</span>
+              <input className="input" value={query} onChange={(e) => setQuery(e.target.value)} autoCapitalize="off" autoCorrect="off" spellCheck={false} />
             </label>
             {catalog.filter((e) => {
               const q = query.trim().toLowerCase();
               return !q || (e.name || "").toLowerCase().includes(q) || (e.muscle_group || "").toLowerCase().includes(q);
             }).map((e) => (
-              <button key={e.id} className="seq-item" type="button" onClick={() => {
+              <button key={e.id} className="row-link" type="button" onClick={() => {
                 setAddedExerciseIds((prev) => prev.includes(e.id) ? prev : [...prev, e.id]);
                 const cat = catalogByName(e.name);
                 setDrafts((d) => ({ ...d, [e.id]: d[e.id] ?? { reps: String(cat?.reps ?? 8), weight: String(cat?.weight ?? 45) } }));
@@ -720,7 +691,7 @@ export default function Session() {
                 setQuery("");
               }}>
                 <img src={plateForExercise(e.name)} alt="" />
-                <span><strong>{e.name}</strong></span>
+                <span className="row-copy"><strong>{e.name}</strong><small>{e.muscle_group}</small></span>
               </button>
             ))}
           </div>

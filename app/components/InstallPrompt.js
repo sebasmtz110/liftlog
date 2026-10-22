@@ -75,15 +75,14 @@ export default function InstallPrompt() {
         right: 12,
         bottom: "calc(10px + env(safe-area-inset-bottom))",
         zIndex: 60,
-        background: "#FFFFFF",
-        color: "#1A1A1A",
-        border: "1px solid #E8E8E8",
-        borderRadius: 14,
+        background: "#111111",
+        color: "#ffffff",
+        border: "0",
+        borderRadius: 20,
         padding: "8px 10px",
         display: "flex",
         gap: 10,
         alignItems: "center",
-        boxShadow: "0 4px 20px rgba(0,0,0,.12)",
         animation: "liftlog-prompt-in .45s cubic-bezier(.2,.9,.25,1) both",
       }}
     >
@@ -97,15 +96,15 @@ export default function InstallPrompt() {
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontWeight: 700, fontSize: 13 }}>Install LiftLog</p>
         {platform === "android" ? (
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B6B70", lineHeight: 1.4 }}>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#b4b4b4", lineHeight: 1.4 }}>
             {deferredPrompt
               ? "Add LiftLog to your home screen for the full app experience."
               : "Tap Chrome menu \u22EE \u2192 Add to Home screen."}
           </p>
         ) : (
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6B6B70", lineHeight: 1.4 }}>
-            Tap <strong style={{ color: "#1A1A1A" }}>Share</strong> \u2192{" "}
-            <strong style={{ color: "#1A1A1A" }}>Add to Home Screen</strong>.
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#b4b4b4", lineHeight: 1.4 }}>
+            Tap <strong style={{ color: "#ffffff" }}>Share</strong> \u2192{" "}
+            <strong style={{ color: "#ffffff" }}>Add to Home Screen</strong>.
           </p>
         )}
       </div>
@@ -114,8 +113,8 @@ export default function InstallPrompt() {
           type="button"
           onClick={installAndroid}
           style={{
-            background: "#0F706E",
-            color: "#fff",
+            background: "#ffffff",
+            color: "#000000",
             border: "none",
             borderRadius: 8,
             padding: "7px 12px",
@@ -134,7 +133,7 @@ export default function InstallPrompt() {
         style={{
           background: "transparent",
           border: "none",
-          color: "#A0A0A8",
+          color: "#949494",
           fontSize: 18,
           lineHeight: 1,
           padding: 4,

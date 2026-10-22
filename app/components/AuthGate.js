@@ -1,32 +1,55 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { getSupabase, isConfigured } from "../../lib/supabase";
 import TabBar, { Sidebar } from "./TabBar";
+import PageTransition from "./PageTransition";
 import AuthScreen from "./AuthScreen";
 import Quiz from "./Quiz";
 
 const IMMERSIVE = ["/session", "/complete"];
 
+const SECTIONS = [
+  ["/exercises", "Library"],
+  ["/workout", "Workouts"],
+  ["/stats", "Progress"],
+  ["/history", "History"],
+  ["/profile", "Profile"],
+  ["/settings", "Settings"],
+  ["/help", "Help"],
+  ["/coach", "Coach"],
+  ["/health", "Health"],
+];
+
+function sectionName(pathname) {
+  const hit = SECTIONS.find(([href]) => pathname.startsWith(href));
+  return hit ? hit[1] : "Today";
+}
+
 function Shell({ children, withTabs }) {
   const pathname = usePathname() || "/";
+  const immersive = IMMERSIVE.some((p) => pathname.startsWith(p));
   useEffect(() => {
-    const tone = pathname.startsWith("/stats")
-      ? "progress"
-      : pathname.startsWith("/session")
-        ? "workout"
-        : "light";
-    document.body.dataset.tone = tone;
-    document.body.classList.toggle("is-immersive", IMMERSIVE.some((p) => pathname.startsWith(p)));
-  }, [pathname]);
+    document.body.dataset.tone = immersive ? "workout" : "light";
+    document.body.classList.toggle("is-immersive", immersive);
+  }, [immersive]);
 
   return (
     <div className="app">
-      {withTabs && <Sidebar />}
-      <div className="stage">{children}</div>
-      {withTabs && <TabBar />}
+      {withTabs && !immersive && <Sidebar />}
+      <div className="stage">
+        {withTabs && !immersive && (
+          <header className="topbar">
+            <strong>{sectionName(pathname)}</strong>
+            <Link href="/profile">Account</Link>
+          </header>
+        )}
+        <PageTransition>{children}</PageTransition>
+      </div>
+      {withTabs && !immersive && <TabBar />}
     </div>
   );
 }

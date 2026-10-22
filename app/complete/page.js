@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabase, isConfigured } from "../../lib/supabase";
 import ConfigBanner from "../components/ConfigBanner";
-import Icon from "../components/Icon";
+import { volumeOf } from "../../lib/volume";
 
 function fmtDur(ms) {
   const min = Math.max(1, Math.round(ms / 60000));
@@ -14,7 +14,7 @@ function fmtDur(ms) {
 
 export default function Complete() {
   return (
-    <Suspense fallback={<p className="loading" style={{ margin: "auto" }}>Loading…</p>}>
+    <Suspense fallback={<section className="page"><p className="loading">Loading…</p></section>}>
       <CompleteInner />
     </Suspense>
   );
@@ -46,49 +46,38 @@ function CompleteInner() {
         setLoading(false);
         return;
       }
-      let name = "Workout";
+      let name = "Session";
       if (workout.template_id) {
-        const { data: tpl } = await supabase
-          .from("workout_templates")
-          .select("name")
-          .eq("id", workout.template_id)
-          .single();
+        const { data: tpl } = await supabase.from("workout_templates").select("name").eq("id", workout.template_id).single();
         if (tpl?.name) name = tpl.name;
       }
       const exCount = new Set((sets ?? []).map((x) => x.exercise_id)).size;
-      const durMs =
-        workout.started_at && workout.ended_at
-          ? new Date(workout.ended_at) - new Date(workout.started_at)
-          : 0;
-      setData({ name, exCount, durMs });
+      const volume = volumeOf(sets);
+      const durMs = workout.started_at && workout.ended_at
+        ? new Date(workout.ended_at) - new Date(workout.started_at)
+        : 0;
+      setData({ name, exCount, durMs, sets: (sets ?? []).length, volume: Math.round(volume) });
       setLoading(false);
     })();
   }, [id]);
 
-  const minutes = Math.max(1, Math.round((data?.durMs || 0) / 60000));
-  const calories = Math.round(minutes * 11.5);
-
   return (
-    <section className="screen screen-fill complete">
+    <section className="page">
       <ConfigBanner />
-      {loading || !data ? (
-        <p className="loading">Loading…</p>
-      ) : (
-        <div className="complete-inner">
-          <div className="burst" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /></div>
-          <div className="check"><Icon name="check" /></div>
-          <h1>Workout Complete!</h1>
-          <p className="complete-name">{data.name}</p>
-          <p className="complete-meta">{data.exCount} exercises · {fmtDur(data.durMs)}</p>
-          <div className="complete-card">
-            <div><span>Exercises</span><strong>{data.exCount}</strong></div>
-            <div><span>Calories</span><strong>{calories}</strong></div>
-            <div><span>Active Time</span><strong>{minutes} min</strong></div>
+      {loading || !data ? <p className="loading">Loading the session…</p> : (
+        <>
+          <h1>{data.name}</h1>
+          <p className="lede">Session finished. {fmtDur(data.durMs)}.</p>
+          <div className="strip">
+            <div><span>Exercises</span><strong className="num">{data.exCount}</strong></div>
+            <div><span>Sets</span><strong className="num">{data.sets}</strong></div>
+            <div><span>Volume</span><strong className="num">{data.volume.toLocaleString()}<small>lb</small></strong></div>
           </div>
-          <button className="btn btn-ink btn-block" type="button" onClick={() => router.push("/history")}>View Workout</button>
-          <button className="btn btn-line btn-block" type="button" onClick={() => router.push("/workout")}>Back to Split</button>
-          <button className="done-link" type="button" onClick={() => router.push("/")}>Done</button>
-        </div>
+          <div className="title-actions" style={{ marginTop: 18 }}>
+            <button className="btn btn-primary" type="button" onClick={() => router.push(`/history?id=${id}`)}>View session</button>
+            <button className="btn btn-line" type="button" onClick={() => router.push("/")}>Back to today</button>
+          </div>
+        </>
       )}
     </section>
   );

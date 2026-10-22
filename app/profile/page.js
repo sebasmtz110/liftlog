@@ -6,16 +6,8 @@ import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
 import { getProfilePhoto, setProfilePhoto, migrateLegacyPhoto } from "../../lib/profilePhoto";
 import ConfigBanner from "../components/ConfigBanner";
-import Icon from "../components/Icon";
 
-const ROWS = [
-  { icon: "grid", label: "My Programs", href: "/workout" },
-  { icon: "library", label: "Exercise Library", href: "/exercises" },
-  { icon: "layers", label: "Workout Templates", href: "/workout" },
-  { icon: "progress", label: "Progress & Stats", href: "/stats" },
-  { icon: "gear", label: "Settings", href: "/settings" },
-  { icon: "help", label: "Help & Support", href: "/help" },
-];
+const SEBAS_EMAIL = "sebasmtz110@gmail.com";
 
 export default function Profile() {
   const router = useRouter();
@@ -46,40 +38,42 @@ export default function Profile() {
     try {
       const url = await setProfilePhoto(file, user?.id);
       setPhoto(url);
-    } catch { /* stays on device only */ }
+    } catch { /* stays on this device */ }
   }
 
+  const links = [
+    ["/workout", "Split"],
+    ["/exercises", "Library"],
+    ["/stats", "Progress"],
+    ["/history", "History"],
+    ["/coach", "Coach"],
+    ["/settings", "Settings"],
+    ["/help", "Help"],
+  ];
+  if (user?.email === SEBAS_EMAIL) links.push(["/health", "Health"]);
+
   return (
-    <section className="screen" data-screen="profile">
+    <section className="page">
       <ConfigBanner />
-      <header className="profile-id">
-        <label style={{ position: "relative", width: 64, height: 64, flex: "none" }}>
-          <img src={photo} alt="" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} />
-          <input type="file" accept="image/*" aria-label="Upload profile photo" onChange={onPhoto} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
-        </label>
+      <div className="title-row">
         <div>
-          <h1>{name || "Your name"}</h1>
-          <p>Build. Improve. Repeat.</p>
+          <h1>{name || "Profile"}</h1>
+          <p className="lede">{user?.email || "Signed in on this browser."}</p>
         </div>
-      </header>
-      <div className="menu">
-        {ROWS.map((r) => (
-          <button key={r.label} type="button" onClick={() => router.push(r.href)}>
-            <Icon name={r.icon} />
-            <span>{r.label}</span>
-            <Icon name="chevron" className="icon chev" />
+        <label className="icon-btn" style={{ width: 56, height: 56, padding: 0, overflow: "hidden", borderRadius: 8 }}>
+          <img src={photo} alt="" style={{ width: 56, height: 56, objectFit: "cover" }} />
+          <input type="file" accept="image/*" aria-label="Change profile photo" onChange={onPhoto} style={{ position: "absolute", width: 1, height: 1, overflow: "hidden" }} />
+        </label>
+      </div>
+      <p className="note">The photo stays in this browser and is not uploaded.</p>
+      <nav className="panel menu" style={{ marginTop: 16 }} aria-label="Account">
+        {links.map(([href, label]) => (
+          <button key={href} type="button" onClick={() => router.push(href)}>
+            <span>{label}</span>
           </button>
         ))}
-      </div>
-      <button className="promo" type="button" onClick={() => router.push("/stats")}>
-        <img src="/assets/better-yesterday.jpg" alt="" />
-        <span className="promo-copy">Better<br />Than<br />Yesterday<i /></span>
-      </button>
-      <div className="pad">
-        <button className="btn btn-line btn-block" type="button" onClick={signOut}>
-          Sign out{user?.email ? ` · ${user.email}` : ""}
-        </button>
-      </div>
+      </nav>
+      <button className="btn btn-line" type="button" style={{ marginTop: 16 }} onClick={signOut}>Sign out</button>
     </section>
   );
 }

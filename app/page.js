@@ -1,344 +1,232 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY } from "../lib/supabase";
+import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../lib/supabase";
 import { loadSplit } from "../lib/presets";
-import { thumbFor } from "../lib/catalog";
+import { EXERCISES, ensureCatalog } from "../lib/catalog";
+import { volumeOf } from "../lib/volume";
+import { BUILTIN_ROUTINES, resolveNames, routineLabel } from "../lib/routines";
+import { loadDayPlans, saveDayPlan } from "../lib/dayPlans";
+import { startSession } from "../lib/startSession";
 import ConfigBanner from "./components/ConfigBanner";
 import Icon from "./components/Icon";
 import { useAuth } from "./components/AuthContext";
-import { getProfilePhoto } from "../lib/profilePhoto";
-import { HERO_SRC } from "../lib/heroImage";
 
-const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-const todayIdx = () => (new Date().getDay() + 6) % 7;
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-/** 5400 -> "5.4k", 950 -> "950" */
-function fmtVol(v) {
-  const n = Math.round(v || 0);
-  if (n >= 10000) return Math.round(n / 1000) + "k";
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
-  return String(n);
+function localIso(value) {
+  const d = new Date(value);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
 }
 
-function fmtTime(min) {
-  const m = Math.round(min || 0);
-  if (m >= 60) return `${Math.floor(m / 60)}h ${m % 60}m`;
-  return `${m}m`;
-}
-
-/** Monday 00:00 of the week containing `d` (local time). */
 function mondayOf(d) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
-  const day = (x.getDay() + 6) % 7; // Monday = 0
-  x.setDate(x.getDate() - day);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
   return x;
-}
-
-/** Unique exercises in a workout, in first-seen order. */
-function workoutExercises(w) {
-  const map = new Map();
-  for (const s of w.sets ?? []) {
-    if (!map.has(s.exercise_id)) {
-      map.set(s.exercise_id, {
-        name: s.exercises?.name ?? "Exercise",
-        muscle: s.exercises?.muscle_group ?? "",
-      });
-    }
-  }
-  return [...map.values()];
-}
-
-function workoutVolume(w) {
-  return (w.sets ?? []).reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0);
 }
 
 export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
-  // All date math happens inside the effect so the render stays deterministic
-  // (Next.js prerender rejects `new Date()` during render).
-  const [model, setModel] = useState(null);
+  const [now, setNow] = useState(null);
+  const [split, setSplit] = useState(null);
+  const [workouts, setWorkouts] = useState([]);
+  const [idByName, setIdByName] = useState({});
+  const [plans, setPlans] = useState({});
   const [hasActive, setHasActive] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [startingTpl, setStartingTpl] = useState(null);
-  const [todayLabel, setTodayLabel] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [avatarSrc, setAvatarSrc] = useState("/assets/avatar-default.jpg");
 
   useEffect(() => {
-    getProfilePhoto(user?.id).then((p) => { if (p) setAvatarSrc(p); });
-  }, []);
-  const [greeting, setGreeting] = useState("Good morning");
-  const [goal, setGoal] = useState(4);
-  const [split, setSplit] = useState(null);
-  const [ti, setTi] = useState(null);
-
-  useEffect(() => {
-    const now = new Date();
-    const hour = now.getHours();
-    setGreeting(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
-    setTi(todayIdx());
-    setTodayLabel(
-      now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }).toUpperCase()
-    );
+    const clock = new Date();
+    setNow(clock);
     setHasActive(Boolean(localStorage.getItem(ACTIVE_WORKOUT_KEY)));
-
-    const weekStart = mondayOf(now);
-    const weekDays = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      return d;
-    });
-    const base = {
-      weekDays,
-      todayStr: now.toDateString(),
-      logged: [],
-      finished: [],
-      latest: null,
-      weekWorkouts: [],
-      weekVolume: 0,
-      weekSetCount: 0,
-    };
-    if (!isConfigured) {
-      setModel(base);
-      return;
-    }
+    if (user) setPlans(loadDayPlans(user.id));
+    if (!isConfigured) return;
     (async () => {
       const supabase = await getSupabase();
-      if (!supabase) {
-        setModel(base);
-        return;
-      }
+      if (!supabase) return;
+      const rows = await ensureCatalog(supabase);
+      const map = {};
+      for (const row of rows || []) map[row.name.toLowerCase()] = row.id;
+      setIdByName(map);
       const { data } = await supabase
         .from("workouts")
-        .select("id, started_at, ended_at, sets(id, reps, weight, exercise_id, exercises(name, muscle_group))")
+        .select("id, started_at, ended_at, sets(reps, weight, exercises(id, name))")
         .order("started_at", { ascending: false })
-        .limit(60);
-      const all = data ?? [];
-      const finished = all.filter((w) => w.ended_at);
-      const weekWorkouts = finished.filter((w) => new Date(w.started_at) >= weekStart);
-      const weekSets = weekWorkouts.flatMap((w) => w.sets ?? []);
-      // Streak: consecutive days (ending today or yesterday) with a workout.
-      const daySet = new Set(finished.map((w) => new Date(w.started_at).toDateString()));
-      let streak = 0;
-      const cursor = new Date(now);
-      if (!daySet.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
-      while (daySet.has(cursor.toDateString())) {
-        streak++;
-        cursor.setDate(cursor.getDate() - 1);
-      }
-      setModel({
-        ...base,
-        logged: weekWorkouts.map((w) => new Date(w.started_at).toDateString()),
-        finished,
-        latest: finished[0] ?? null,
-        weekWorkouts,
-        weekVolume: weekSets.reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0),
-        weekSetCount: weekSets.length,
-        weekMinutes: Math.round(weekWorkouts.reduce((s, w) => {
-          if (w.started_at && w.ended_at) {
-            return s + (new Date(w.ended_at) - new Date(w.started_at)) / 60000;
-          }
-          return s;
-        }, 0)),
-        streak,
-      });
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("display_name, weekly_goal")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (profile?.display_name) setDisplayName(profile.display_name);
-        if (profile?.weekly_goal) setGoal(profile.weekly_goal);
-        const s = await loadSplit(supabase, user.id);
-        setSplit(s);
-      }
+        .limit(80);
+      setWorkouts((data ?? []).filter((w) => w.ended_at));
+      if (user) setSplit(await loadSplit(supabase, user.id));
     })();
   }, [user]);
 
-  async function startFromTemplate(tpl) {
-    if (!user || startingTpl || !isConfigured) return;
-    setStartingTpl(tpl.id);
-    const supabase = await getSupabase();
-    if (!supabase) return;
-    const { data, error } = await supabase
-      .from("workouts")
-      .insert({ started_at: new Date().toISOString(), user_id: user.id, template_id: tpl.id })
-      .select("id")
-      .single();
-    if (!error && data) {
-      const exIds = (tpl.template_exercises ?? [])
+  const todayIdx = now ? (now.getDay() + 6) % 7 : 0;
+  const todayIso = now ? localIso(now) : "";
+  const weekStart = now ? mondayOf(now) : null;
+  const finished = workouts;
+  const weekWorkouts = weekStart ? finished.filter((w) => new Date(w.started_at) >= weekStart) : [];
+  const weekVolume = Math.round(weekWorkouts.reduce((sum, w) => sum + volumeOf(w.sets), 0));
+  const loggedToday = finished.find((w) => localIso(w.started_at) === todayIso) || null;
+  const lastSession = finished.find((w) => localIso(w.started_at) < todayIso) || null;
+
+  const routines = useMemo(() => {
+    const builtins = BUILTIN_ROUTINES.map((routine) => ({
+      ...routine,
+      exerciseIds: resolveNames(routine.names, idByName),
+      templateId: null,
+    })).filter((routine) => routine.exerciseIds.length);
+    const saved = [];
+    for (const day of split?.days ?? []) {
+      const tpl = day.template;
+      if (!tpl) continue;
+      if (saved.some((item) => item.templateId === tpl.id)) continue;
+      const exerciseIds = (tpl.template_exercises ?? [])
         .slice()
         .sort((a, b) => a.sort_order - b.sort_order)
-        .map((te) => te.exercises.id);
-      if (exIds.length) localStorage.setItem(TEMPLATE_EXERCISES_KEY, JSON.stringify(exIds));
-      localStorage.setItem(ACTIVE_WORKOUT_KEY, data.id);
-      router.push("/session");
+        .map((te) => te.exercises?.id)
+        .filter(Boolean);
+      saved.push({
+        key: `tpl:${tpl.id}`,
+        name: tpl.name,
+        detail: tpl.name,
+        focus: day.muscle_targets || "Saved split",
+        exerciseIds,
+        templateId: tpl.id,
+      });
     }
-    setStartingTpl(null);
+    return [...builtins, ...saved];
+  }, [idByName, split]);
+
+  const todayDay = split?.days?.find((d) => d.day_index === todayIdx) || null;
+  const savedPlan = plans[todayIso];
+  const defaultRoutine = todayDay?.template
+    ? routines.find((r) => r.templateId === todayDay.template.id) || routines.find((r) => r.name === todayDay.label)
+    : null;
+  const active = savedPlan
+    ? routines.find((r) => r.key === savedPlan.routineKey) || {
+        ...savedPlan,
+        name: savedPlan.label,
+        exerciseIds: savedPlan.exerciseIds,
+      }
+    : defaultRoutine;
+
+  const when = now
+    ? now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })
+    : "";
+
+  function chooseRoutine(routine) {
+    if (!user || !todayIso) return;
+    const next = saveDayPlan(user.id, todayIso, {
+      routineKey: routine.key,
+      label: routine.name,
+      focus: routine.focus,
+      exerciseIds: routine.exerciseIds,
+      templateId: routine.templateId,
+    });
+    setPlans(next);
   }
 
-  async function startWorkout() {
-    if (!isConfigured || !user) return;
+  async function onPlay() {
+    if (hasActive) {
+      router.push("/session");
+      return;
+    }
+    if (loggedToday) {
+      router.push(`/history?id=${loggedToday.id}`);
+      return;
+    }
+    if (!active?.exerciseIds?.length || !user || starting) {
+      router.push("/workout");
+      return;
+    }
     setStarting(true);
     const supabase = await getSupabase();
-    if (!supabase) return;
-    const { data, error } = await supabase
-      .from("workouts")
-      .insert({ started_at: new Date().toISOString(), user_id: user.id })
-      .select("id")
-      .single();
+    if (!supabase) {
+      setStarting(false);
+      return;
+    }
+    const id = await startSession(supabase, user, {
+      templateId: active.templateId,
+      exerciseIds: active.exerciseIds,
+    });
     setStarting(false);
-    if (error || !data) return;
-    localStorage.setItem(ACTIVE_WORKOUT_KEY, data.id);
-    router.push("/session");
+    if (id) router.push("/session");
   }
 
-  const m = model;
-  const today = split && ti !== null ? split.days.find((d) => d.day_index === ti) : null;
-  const templates = split ? split.days.map((d) => d.template).filter(Boolean) : [];
-  const nextDay = split && ti !== null
-    ? [...split.days.slice(ti + 1), ...split.days.slice(0, ti + 1)].find((d) => !d.is_rest && d.template)
-    : null;
-
-  // Weekly bars: volume per day Mon..Sun
-  const weekVol = (m?.weekDays ?? []).map((d) => {
-    const key = d.toDateString();
-    return (m?.weekWorkouts ?? [])
-      .filter((w) => new Date(w.started_at).toDateString() === key)
-      .flatMap((w) => w.sets ?? [])
-      .reduce((s, x) => s + (x.reps ?? 0) * Number(x.weight ?? 0), 0);
-  });
-  const maxVol = Math.max(1, ...weekVol);
-
-  const featureTpl = hasActive ? null : (today && !today.is_rest ? today.template : null);
-  const featureName = hasActive
-    ? "In progress"
-    : today?.is_rest
-      ? "Rest day"
-      : featureTpl?.name || "Today's workout";
-  const featureCount = featureTpl?.template_exercises?.length ?? 0;
-  const featureMeta = hasActive
-    ? "Pick up where you left off"
-    : today?.is_rest
-      ? "Recovery is part of the plan"
-      : featureTpl
-        ? `${featureCount} exercises${today.muscle_targets ? ` · ${today.muscle_targets}` : ""}`
-        : "Set up a split to plan the week";
-
-  function onStart() {
-    if (hasActive) router.push("/session");
-    else if (featureTpl) startFromTemplate(featureTpl);
-    else router.push("/workout");
+  const splitLine = split
+    ? [...new Set((split.days ?? []).filter((d) => !d.is_rest).map((d) => d.label))].join(", ") || split.name
+    : "Set a split";
+  const lastNames = [];
+  for (const set of lastSession?.sets ?? []) {
+    const name = set.exercises?.name;
+    if (name && !lastNames.includes(name)) lastNames.push(name);
   }
-
-  const recent = (m?.finished ?? []).slice(0, 4);
-  const minutes = m?.weekMinutes ?? 0;
+  const lastWhen = lastSession
+    ? new Date(lastSession.started_at).toLocaleDateString(undefined, { weekday: "long", day: "numeric" })
+    : "";
 
   return (
-    <section className="screen" data-screen="home">
+    <section className="page">
       <ConfigBanner />
-      <div className="dash">
-        <header className="dash-head">
-          <div>
-            <p className="hello">{greeting},</p>
-            <h1 className="hello-name">{displayName || "Sebas"}</h1>
-          </div>
-          <div className="dash-tools">
-            <button className="avatar-btn" type="button" aria-label="Profile" onClick={() => router.push("/profile")}>
-              <img src={avatarSrc} alt="" />
-            </button>
-            <button className="icon-btn" type="button" aria-label="Settings" onClick={() => router.push("/settings")}>
-              <Icon name="gear" />
-            </button>
-          </div>
-        </header>
-
-        <article className="feature">
-          <img src={HERO_SRC} alt="Sebas at the window before training, city beyond the glass" data-muse-slot="hero-still" />
-          <div className="feature-scrim" />
-          <div className="feature-copy">
-            <p className="kicker">Today&apos;s Workout</p>
-            <h2>{featureName}</h2>
-            <p className="today-meta">{featureMeta}</p>
-            <button className="btn btn-mint" type="button" disabled={starting || startingTpl !== null} onClick={onStart}>
-              <span>{hasActive ? "Resume Workout" : startingTpl ? "Starting…" : featureTpl ? "Start Workout" : "View Split"}</span>
-              <Icon name="arrow" />
-            </button>
-          </div>
-        </article>
-
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Weekly Progress</h2>
-            <span className="week-note">{m?.weekWorkouts.length ?? 0}/{goal} workouts</span>
-          </div>
-          <div className="bars" role="img" aria-label="Training volume this week">
-            {weekVol.map((v, i) => (
-              <span key={i} className={v > 0 ? "" : "is-rest"} style={{ "--h": `${v ? Math.max(28, Math.round((v / maxVol) * 100)) : 22}%` }} />
-            ))}
-          </div>
-          <div className="day-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
-          <div className="stat-row">
-            <div><strong>{fmtVol(m?.weekVolume)} lb</strong><span>Total Volume</span></div>
-            <div><strong>{fmtTime(minutes)}</strong><span>Active Time</span></div>
-            <div><strong>{Math.round(minutes * 11.5)}</strong><span>Calories</span></div>
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Next Up</h2>
-            <button className="text-link" type="button" onClick={() => router.push("/workout")}>View All</button>
-          </div>
-          {nextDay?.template ? (
-            <button className="act-row" type="button" onClick={() => startFromTemplate(nextDay.template)}>
-              <img className="thumb" src={thumbFor(nextDay.template.template_exercises?.[0]?.exercises?.name)} alt="" />
-              <span className="link-copy">
-                <strong>{nextDay.template.name}</strong>
-                <small>{DAY_LABELS[nextDay.day_index]} · {nextDay.template.template_exercises?.length ?? 0} exercises{nextDay.template.est_minutes ? ` · ${nextDay.template.est_minutes} min` : ""}</small>
-              </span>
-              <Icon name="chevron" />
-            </button>
-          ) : (
-            <p className="empty">Your next session shows up once a split is saved.</p>
-          )}
-        </section>
-
-        <section className="panel panel-list">
-          <div className="panel-head">
-            <h2>Recent Activity</h2>
-            <button className="text-link" type="button" onClick={() => router.push("/history")}>View History</button>
-          </div>
-          {m === null ? (
-            <p className="loading">Loading…</p>
-          ) : recent.length === 0 ? (
-            <p className="empty">No workouts yet</p>
-          ) : recent.map((w) => {
-            const exs = workoutExercises(w);
-            const mins = w.started_at && w.ended_at
-              ? Math.max(1, Math.round((new Date(w.ended_at) - new Date(w.started_at)) / 60000))
-              : 0;
-            return (
-              <button key={w.id} className="act-row" type="button" onClick={() => router.push(`/history?id=${w.id}`)}>
-                <img className="thumb" src={thumbFor(exs[0]?.name)} alt="" />
-                <span className="link-copy">
-                  <strong>{exs[0]?.name || "Workout"}</strong>
-                  <small>{new Date(w.started_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</small>
-                </span>
-                <span className="act-meta">
-                  <span><Icon name="clock" />{mins} min</span>
-                  <span><Icon name="workouts" />{fmtVol(workoutVolume(w))} lb</span>
-                </span>
-                <Icon name="chevron" />
-              </button>
-            );
-          })}
-        </section>
+      <p className="home-day">{when}</p>
+      <div className="tiles">
+        <button type="button" className="tile" onClick={() => router.push("/workout?tab=routines")}>
+          <img src="/photos/split-bells.jpg" alt="" />
+          <span className="tile-copy"><span className="name">Split</span><span className="sets">{splitLine}</span></span>
+        </button>
+        <button type="button" className="tile" onClick={() => router.push("/exercises")}>
+          <img src="/photos/library-you.jpg" alt="" style={{ objectPosition: "center 39%" }} />
+          <span className="tile-copy"><span className="name">Library</span><span className="sets">{EXERCISES.length} exercises</span></span>
+        </button>
+        <button type="button" className="tile" onClick={() => router.push("/stats")}>
+          <img src="/photos/progress-pullup.jpg" alt="" style={{ objectPosition: "center 22%" }} />
+          <span className="tile-copy"><span className="name">Progress</span><span className="sets">{weekVolume.toLocaleString()} lb this week</span></span>
+        </button>
+      </div>
+      <div className="picks" role="group" aria-label="Today's workout">
+        {routines.map((routine) => (
+          <button
+            key={routine.key}
+            type="button"
+            aria-pressed={active?.key === routine.key}
+            onClick={() => chooseRoutine(routine)}
+          >
+            {routineLabel(routine)}
+          </button>
+        ))}
+      </div>
+      <section className="ready">
+        <div>
+          <p className="ready-label">{loggedToday ? "Logged" : hasActive ? "In progress" : "Ready to train"}</p>
+          <h1>{active?.name || (todayDay?.is_rest ? "Rest" : DOW[todayIdx])}</h1>
+          <p className="sub">
+            {loggedToday
+              ? "Open the finished session"
+              : active?.exerciseIds?.length
+                ? `${active.exerciseIds.length} exercises · ${active.focus || ""}`
+                : "Choose a workout for this day."}
+          </p>
+        </div>
+        <button className="play" type="button" aria-label={loggedToday ? "View workout" : "Start workout"} onClick={onPlay} disabled={starting}>
+          <Icon name="play" />
+        </button>
+      </section>
+      <div className="dests">
+        <button type="button" className="dest" onClick={() => router.push("/workout?tab=routines")}>
+          <Icon name="workouts" /><span><span className="name">Routines</span><span className="sets">The split</span></span>
+        </button>
+        <button type="button" className="dest" onClick={() => router.push("/history")}>
+          <Icon name="progress" /><span><span className="name">History</span><span className="sets">{finished.length} {finished.length === 1 ? "workout" : "workouts"}</span></span>
+        </button>
+        <button type="button" className="dest" onClick={() => router.push("/exercises")}>
+          <Icon name="library" /><span><span className="name">Exercises</span><span className="sets">{EXERCISES.length} in the library</span></span>
+        </button>
+        <button type="button" className="dest" onClick={() => lastSession && router.push(`/history?id=${lastSession.id}`)} disabled={!lastSession}>
+          <Icon name="home" /><span><span className="name">Last session</span><span className="sets">{lastSession ? `${lastNames[0] || "Session"} · ${lastWhen}` : "None yet"}</span></span>
+        </button>
       </div>
     </section>
   );

@@ -1,33 +1,23 @@
-"use client";
-
-import { useRouter } from "next/navigation";
 import ConfigBanner from "../components/ConfigBanner";
-import Icon from "../components/Icon";
 
 export default function Help() {
-  const router = useRouter();
   return (
-    <section className="screen" data-screen="help">
+    <section className="page">
       <ConfigBanner />
-      <header className="subhead">
-        <button type="button" aria-label="Back" onClick={() => router.back()}><Icon name="back" /></button>
-        <h1>Help &amp; Support</h1>
-        <span />
-      </header>
-      <div className="pad help">
-        <article>
-          <h2>How do I log a set?</h2>
-          <p>Open today&apos;s workout and tap Start. Minus and plus change the weight or the reps. Log Set saves the set, then the rest timer takes over. Skip Rest ends it immediately.</p>
-        </article>
-        <article>
-          <h2>Where do photos go?</h2>
-          <p>Your profile picture and progress photos stay in this browser. They are not sent to the server.</p>
-        </article>
-        <article>
-          <h2>How does movement connect?</h2>
-          <p>The active set and the movement screen are marked with data-muse-slot=&quot;exercise-motion&quot;. Assign window.ALDER_MOTION_MOUNT and it is called with that element. The page emits alder:motion with the exercise, phase, time, and duration.</p>
-        </article>
-      </div>
+      <h1>Help</h1>
+      <p className="lede">How a session works.</p>
+      <section className="panel" style={{ marginTop: 16 }}>
+        <h2>Log a set</h2>
+        <p>Open today and start the session. Minus and plus change the weight by 5 lb or the reps by 1. Log set writes the set, then the rest timer runs. Skip rest ends it.</p>
+      </section>
+      <section className="panel" style={{ marginTop: 16 }}>
+        <h2>Photos</h2>
+        <p>The profile picture and progress photos stay in this browser. They are not sent to the server.</p>
+      </section>
+      <section className="panel" style={{ marginTop: 16 }}>
+        <h2>Movement</h2>
+        <p>The movement screen and the session carry data-muse-slot=&quot;exercise-motion&quot;. If window.ALDER_MOTION_MOUNT is set, it is called with that element. The page emits alder:motion with the exercise, phase, time, and duration.</p>
+      </section>
     </section>
   );
 }

@@ -1,5 +1,7 @@
 import "./globals.css";
-import { inter } from "./fonts";
+import "./library.css";
+import { geist, inter } from "./fonts";
+import "./screens.css";
 import { AuthProvider } from "./components/AuthContext";
 import AuthGate from "./components/AuthGate";
 import InstallPrompt from "./components/InstallPrompt";
@@ -16,16 +18,18 @@ export const metadata = {
   },
 };
 
+export const instant = false;
+
 export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#FFFFFF",
+  themeColor: "#f4f3f1",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${geist.variable} ${inter.variable}`}>
       <body>
         <AuthProvider>
           <AuthGate>{children}</AuthGate>
