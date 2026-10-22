@@ -517,6 +517,7 @@ export default function Session() {
 
       {focus ? (
         <>
+          <div className="focus-swap" key={focus.exercise.id}>
           <div className="title-row" style={{ marginTop: 12 }}>
             <div>
               <h1>{focus.exercise.name}</h1>
@@ -560,6 +561,7 @@ export default function Session() {
             </button>
             <button className="btn btn-line" type="button" onClick={() => setMotionOpen(true)}>Movement</button>
             <button className="btn btn-quiet" type="button" onClick={() => router.push("/coach")}>Coach</button>
+          </div>
           </div>
           {showRest && (
             <div className="rest" role="region" aria-label="Rest">

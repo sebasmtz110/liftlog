@@ -299,3 +299,8 @@ a.log { text-decoration: none; color: inherit; }
     animation: none;
   }
 }
+
+/* Session: swapping the focused exercise eases in instead of snapping. */
+@media (prefers-reduced-motion: no-preference) {
+  .focus-swap { animation: lift-rise 240ms ease both; }
+}
