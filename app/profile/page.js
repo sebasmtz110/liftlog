@@ -13,7 +13,7 @@ export default function Profile() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const [name, setName] = useState("");
-  const [photo, setPhoto] = useState("/assets/avatar-default.jpg");
+  const [photo, setPhoto] = useState("/assets/avatar-default.svg");
 
   useEffect(() => {
     if (!user?.id) return;
