@@ -114,6 +114,8 @@ body[data-tone="workout"] ::selection { background: #3a2a27; color: #f4f2ee; }
   padding-top: calc(var(--pad) + env(safe-area-inset-top));
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
+/* Under the topbar the bar already clears the status bar — don't count it twice. */
+.app.has-topbar .page { padding-top: var(--pad); }
 .page h1 {
   margin: 0;
   font-size: 20px;

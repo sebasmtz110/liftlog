@@ -38,7 +38,7 @@ function Shell({ children, withTabs }) {
   }, [immersive]);
 
   return (
-    <div className="app">
+    <div className={withTabs && !immersive ? "app has-topbar" : "app"}>
       {withTabs && !immersive && <Sidebar />}
       <div className="stage">
         {withTabs && !immersive && (
