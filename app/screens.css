@@ -305,3 +305,32 @@ a.log { text-decoration: none; color: inherit; }
 @media (prefers-reduced-motion: no-preference) {
   .focus-swap { animation: lift-rise 240ms ease both; }
 }
+
+/* Onboarding quiz: photo hero, progress, tappable option cards. */
+.quiz-hero { position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 3 / 1; max-height: 180px; background: var(--raised); }
+.quiz-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.quiz-hero-copy { position: absolute; left: 16px; bottom: 12px; color: #fff; }
+.quiz-hero-copy h1 { margin: 2px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -.02em; color: #fff; }
+.quiz-kicker { font-size: 11px; letter-spacing: .12em; font-weight: 600; text-transform: uppercase; color: rgba(255, 255, 255, .78); }
+.quiz-kicker.is-dark { color: var(--accent); }
+.quiz-meta { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.quiz-track { flex: 1; height: 4px; border-radius: 2px; background: var(--raised); overflow: hidden; }
+.quiz-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 240ms ease; }
+.quiz-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.quiz-step { margin-top: 16px; }
+@media (prefers-reduced-motion: no-preference) {
+  .quiz-step { animation: lift-rise 240ms ease both; }
+}
+.quiz-days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.quiz-days button { border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 14px 6px; text-align: center; cursor: pointer; color: inherit; }
+.quiz-days button .n { display: block; font-size: 22px; font-weight: 800; }
+.quiz-days button .u { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.quiz-days button.is-on { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.quiz-days button.is-on .u { color: rgba(255, 255, 255, .75); }
+.quiz-opts { display: grid; gap: 8px; }
+.quiz-opt { display: flex; width: 100%; text-align: left; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 14px; cursor: pointer; color: inherit; }
+.quiz-opt strong { display: block; font-size: 15px; }
+.quiz-opt small { display: block; color: var(--muted); margin-top: 2px; }
+.quiz-opt.is-on { border-color: var(--text); }
+.block-btn.is-line { background: transparent; border: 1px solid var(--control); color: var(--text); }
+.quiz-back { margin-top: 14px; }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthContext";
@@ -65,16 +65,21 @@ function Shell({ children, withTabs }) {
 export default function AuthGate({ children }) {
   const { user, loading } = useAuth();
   const [onboarded, setOnboarded] = useState(null); // null = unknown
+  const checkRun = useRef(0);
 
   const checkOnboarding = useCallback(async () => {
     if (!user) {
       setOnboarded(null);
       return;
     }
+    // Auth events fire in bursts right after sign-up; a slow earlier check
+    // must never overwrite a newer answer (that flip-flop reads as a glitch).
+    const run = ++checkRun.current;
+    const stale = () => run !== checkRun.current;
     try {
       const supabase = await getSupabase();
       if (!supabase) {
-        setOnboarded(true);
+        if (!stale()) setOnboarded(true);
         return;
       }
       const { data, error } = await supabase
@@ -82,6 +87,7 @@ export default function AuthGate({ children }) {
         .select("onboarding_done")
         .eq("id", user.id)
         .maybeSingle();
+      if (stale()) return;
       if (error) {
         // profiles table may not exist yet (pre-migration) — don't block the app.
         setOnboarded(true);
@@ -89,9 +95,17 @@ export default function AuthGate({ children }) {
       }
       setOnboarded(data?.onboarding_done ?? false);
     } catch {
-      setOnboarded(true);
+      if (!stale()) setOnboarded(true);
     }
   }, [user]);
+
+  // The quiz has already written onboarding_done by the time it calls this:
+  // enter the app immediately instead of flashing a loading screen while the
+  // re-check round-trips, then revalidate in the background.
+  const handleOnboarded = useCallback(() => {
+    setOnboarded(true);
+    checkOnboarding();
+  }, [checkOnboarding]);
 
   useEffect(() => {
     if (isConfigured && user) checkOnboarding();
@@ -122,7 +136,7 @@ export default function AuthGate({ children }) {
   if (!onboarded) {
     return (
       <Shell>
-        <Quiz userId={user.id} onDone={checkOnboarding} />
+        <Quiz userId={user.id} onDone={handleOnboarded} />
       </Shell>
     );
   }
