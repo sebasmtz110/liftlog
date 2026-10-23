@@ -39,6 +39,7 @@ export default function Home() {
   const [plans, setPlans] = useState({});
   const [hasActive, setHasActive] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState("");
   const [name, setName] = useState("");
 
   useEffect(() => {
@@ -157,9 +158,11 @@ export default function Home() {
       return;
     }
     setStarting(true);
+    setStartError("");
     const supabase = await getSupabase();
     if (!supabase) {
       setStarting(false);
+      setStartError("That workout didn't start. Try again.");
       return;
     }
     const id = await startSession(supabase, user, {
@@ -168,6 +171,7 @@ export default function Home() {
     });
     setStarting(false);
     if (id) router.push("/session");
+    else setStartError("That workout didn't start. Try again.");
   }
 
   const splitLine = split
@@ -231,6 +235,7 @@ export default function Home() {
           <Icon name="play" />
         </button>
       </section>
+      {startError ? <p className="err" role="alert">{startError}</p> : null}
       <div className="dests">
         <button type="button" className="dest" onClick={() => router.push("/workout?tab=routines")}>
           <Icon name="workouts" /><span><span className="name">Routines</span><span className="sets">The split</span></span>
