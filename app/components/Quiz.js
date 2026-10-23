@@ -44,46 +44,55 @@ export default function Quiz({ userId, onDone }) {
   const [goal, setGoal] = useState("muscle");
   const [presetKey, setPresetKey] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   async function finishWithSplit(built) {
+    if (saving) return;
     setSaving(true);
+    setSaveError("");
     try {
       const supabase = await getSupabase();
-      if (supabase) {
-        await applySplit(supabase, userId, built);
-        await supabase.from("profiles").upsert({
-          id: userId,
-          display_name: name.trim() || null,
-          weekly_goal: built.daysPerWeek,
-          onboarding_done: true,
-        });
-      }
+      if (!supabase) throw new Error("no-client");
+      await applySplit(supabase, userId, built);
+      const { error } = await supabase.from("profiles").upsert({
+        id: userId,
+        display_name: name.trim() || null,
+        weekly_goal: built.daysPerWeek,
+        onboarding_done: true,
+      });
+      if (error) throw error;
+      onDone();
+    } catch {
+      setSaveError("That didn't save. Try again.");
     } finally {
       setSaving(false);
     }
-    onDone();
   }
 
   async function skipAll() {
+    if (saving) return;
     setSaving(true);
+    setSaveError("");
     try {
       const supabase = await getSupabase();
-      if (supabase) {
-        await supabase.from("profiles").upsert({
-          id: userId,
-          display_name: name.trim() || null,
-          onboarding_done: true,
-        });
-      }
+      if (!supabase) throw new Error("no-client");
+      const { error } = await supabase.from("profiles").upsert({
+        id: userId,
+        display_name: name.trim() || null,
+        onboarding_done: true,
+      });
+      if (error) throw error;
+      onDone();
+    } catch {
+      setSaveError("That didn't save. Try again.");
     } finally {
       setSaving(false);
     }
-    onDone();
   }
 
   const recommended = presetKey ?? recommendPreset(days);
   const built = step === "recommend" || step === "browse" ? buildSplit(recommended, experience, goal) : null;
-  const stepIndex = Math.max(0, STEPS.indexOf(step));
+  const stepIndex = step === "browse" ? STEPS.length - 1 : Math.max(0, STEPS.indexOf(step));
   const backTo = BACK_TO[step];
 
   return (
@@ -105,6 +114,7 @@ export default function Quiz({ userId, onDone }) {
         <button className="text-btn" type="button" onClick={skipAll} disabled={saving}>Skip</button>
       </div>
       <p className="lede" style={{ marginTop: 10 }}>A split is optional. You can change it later.</p>
+      {saveError ? <p className="err" role="alert">{saveError}</p> : null}
 
       <div className="quiz-step" key={step}>
         {step === "name" && (
