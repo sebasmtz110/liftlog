@@ -25,25 +25,34 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
-    let sub;
+    let subscription;
     let cancelled = false;
     (async () => {
-      const supabase = await getSupabase();
-      if (!supabase || cancelled) return;
-      supabase.auth.getSession().then(({ data }) => {
-        if (cancelled) return;
-        setUser(data.session?.user ?? null);
+      try {
+        const supabase = await getSupabase();
+        if (!supabase || cancelled) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
+        let sawAuthEvent = false;
+        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (cancelled) return;
+          sawAuthEvent = true;
+          setUser(session?.user ?? null);
+          setLoading(false);
+        });
+        subscription = data.subscription;
+        const { data: sessionData, error } = await supabase.auth.getSession();
+        if (cancelled || sawAuthEvent) return;
+        if (!error) setUser(sessionData.session?.user ?? null);
         setLoading(false);
-      });
-      const { data } = await supabase.auth.onAuthStateChange((_event, session) => {
-        if (cancelled) return;
-        setUser(session?.user ?? null);
-      });
-      sub = data;
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
-      sub?.subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
