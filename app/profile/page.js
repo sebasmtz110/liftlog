@@ -14,6 +14,7 @@ export default function Profile() {
   const { user, signOut } = useAuth();
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState("/assets/avatar-default.svg");
+  const [photoError, setPhotoError] = useState("");
 
   useEffect(() => {
     if (!user?.id) return;
@@ -35,10 +36,13 @@ export default function Profile() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    setPhotoError("");
     try {
       const url = await setProfilePhoto(file, user?.id);
       setPhoto(url);
-    } catch { /* stays on this device */ }
+    } catch {
+      setPhotoError("That photo didn't save. Try again.");
+    }
   }
 
   const links = [
@@ -66,6 +70,7 @@ export default function Profile() {
         </label>
       </div>
       <p className="note">The photo stays in this browser and is not uploaded.</p>
+      {photoError ? <p className="err" role="alert">{photoError}</p> : null}
       <nav className="panel menu" style={{ marginTop: 16 }} aria-label="Account">
         {links.map(([href, label]) => (
           <button key={href} type="button" onClick={() => router.push(href)}>

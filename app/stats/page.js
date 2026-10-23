@@ -48,6 +48,7 @@ export default function Stats() {
   // Body: weight log (Supabase) + progress photos (on-device only).
   const [weights, setWeights] = useState([]);
   const [photos, setPhotos] = useState([]);
+  const [photoError, setPhotoError] = useState("");
   const [bwSheet, setBwSheet] = useState(null); // {id?, value}
   const [bwSaving, setBwSaving] = useState(false);
   const [confirmPhotoDel, setConfirmPhotoDel] = useState(null);
@@ -142,12 +143,13 @@ export default function Stats() {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
+    setPhotoError("");
     try {
       const url = await shrinkPhoto(f);
       await addPhoto(url);
       setPhotos(await listPhotos());
     } catch {
-      /* ignore */
+      setPhotoError("That photo didn't save. Try again.");
     }
   }
 
@@ -346,6 +348,7 @@ export default function Stats() {
                 <button className="text-btn" type="button" onClick={() => fileRef.current?.click()}>Add</button>
               </div>
               <p className="note">Stored in this browser. They are not uploaded.</p>
+              {photoError ? <p className="err" role="alert">{photoError}</p> : null}
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhotoFile} />
               {photos.length === 0 ? <p className="empty">No photos yet.</p> : (
                 <div className="bays" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
