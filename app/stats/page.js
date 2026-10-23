@@ -40,6 +40,7 @@ export default function Stats() {
   const [range, setRange] = useState("week");
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState("");
   // All date math happens inside the effect so the render stays deterministic
   // (Next.js prerender rejects `new Date()` during render).
   const [now, setNow] = useState(null);
@@ -86,13 +87,17 @@ export default function Stats() {
         setLoading(false);
         return;
       }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("workouts")
         .select("id, started_at, sets(id, reps, weight, exercises(name, muscle_group))")
         .not("ended_at", "is", null)
         .order("started_at", { ascending: false })
         .limit(200);
-      setWorkouts(data ?? []);
+      if (error) setActionError("Couldn't load your sessions. Try again.");
+      else {
+        setActionError("");
+        setWorkouts(data ?? []);
+      }
       setLoading(false);
     })();
   }, []);
@@ -101,23 +106,35 @@ export default function Stats() {
     const v = Number(bwSheet?.value);
     if (!(v > 0) || !user || !isConfigured) return;
     setBwSaving(true);
+    setActionError("");
     const supabase = await getSupabase();
-    if (supabase) {
-      if (bwSheet.id) {
-        await supabase.from("body_weights").update({ weight_lb: v }).eq("id", bwSheet.id);
-      } else {
-        await supabase.from("body_weights").insert({ user_id: user.id, weight_lb: v });
-      }
-    }
+    const result = !supabase
+      ? { error: new Error("no-client") }
+      : bwSheet.id
+        ? await supabase.from("body_weights").update({ weight_lb: v }).eq("id", bwSheet.id)
+        : await supabase.from("body_weights").insert({ user_id: user.id, weight_lb: v });
     setBwSaving(false);
+    if (result.error) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
     setBwSheet(null);
     refreshBody();
   }
 
   async function deleteWeight(id) {
     if (!confirm("Delete this weight entry?")) return;
+    setActionError("");
     const supabase = await getSupabase();
-    if (supabase) await supabase.from("body_weights").delete().eq("id", id);
+    if (!supabase) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    const { error } = await supabase.from("body_weights").delete().eq("id", id);
+    if (error) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
     refreshBody();
   }
 
@@ -248,8 +265,9 @@ export default function Stats() {
           <button key={r.id} type="button" className={range === r.id ? "is-on" : ""} onClick={() => setRange(r.id)}>{r.label}</button>
         ))}
       </div>
+      {actionError ? <p className="err" role="alert">{actionError}</p> : null}
 
-      {loading || !model ? <p className="loading">Loading…</p> : (
+      {loading || !model ? <p className="loading">Loading…</p> : actionError ? null : (
         <div className="stack" style={{ marginTop: "var(--gap)" }}>
           <section className="panel">
             <div className="stat-tiles">
@@ -359,6 +377,7 @@ export default function Stats() {
               <span>Pounds</span>
               <input className="input" type="number" inputMode="decimal" min="1" step="0.1" value={bwSheet.value} onChange={(e) => setBwSheet((prev) => ({ ...prev, value: e.target.value }))} />
             </label>
+            {actionError ? <p className="err" role="alert">{actionError}</p> : null}
             <button className="btn btn-primary" type="button" disabled={bwSaving} onClick={saveWeight}>{bwSaving ? "Saving…" : "Save"}</button>
           </div>
         </div>
