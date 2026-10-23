@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { getSupabase, isConfigured } from "../../lib/supabase";
 import TabBar, { Sidebar } from "./TabBar";
@@ -64,8 +64,11 @@ function Shell({ children, withTabs }) {
  */
 export default function AuthGate({ children }) {
   const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname() || "/";
   const [onboarded, setOnboarded] = useState(null); // null = unknown
   const checkRun = useRef(0);
+  const sawSignIn = useRef(false);
 
   const checkOnboarding = useCallback(async () => {
     if (!user) {
@@ -110,6 +113,21 @@ export default function AuthGate({ children }) {
   useEffect(() => {
     if (isConfigured && user) checkOnboarding();
   }, [user, checkOnboarding]);
+
+  // Signing in (or creating an account) always lands on Today, not on
+  // whatever page the browser happened to be sitting on — the account page
+  // was the usual trap. Only a real pass through the sign-in screen counts:
+  // a session simply restoring on app open keeps the current page.
+  useEffect(() => {
+    if (!loading && !user) sawSignIn.current = true;
+  }, [loading, user]);
+
+  useEffect(() => {
+    if (user && sawSignIn.current) {
+      sawSignIn.current = false;
+      if (pathname !== "/") router.replace("/");
+    }
+  }, [user, pathname, router]);
 
   if (!isConfigured) return <Shell withTabs>{children}</Shell>;
   if (loading) {
