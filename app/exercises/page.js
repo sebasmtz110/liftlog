@@ -96,6 +96,7 @@ function ExercisesInner() {
   const [tab, setTab] = useState("Instructions");
   const [motion, setMotion] = useState(false);
   const [motionTime, setMotionTime] = useState(12);
+  const [startError, setStartError] = useState("");
 
   useEffect(() => {
     if (!isConfigured || !user) return;
@@ -164,20 +165,30 @@ function ExercisesInner() {
 
   async function startExercise(ex) {
     if (!user || !isConfigured) return;
+    setStartError("");
     const supabase = await getSupabase();
-    if (!supabase) return;
+    if (!supabase) {
+      setStartError("That workout didn't start. Try again.");
+      return;
+    }
     let exerciseId = ids[ex.name.toLowerCase()];
     if (!exerciseId) {
       const { data } = await supabase.from("exercises").select("id").eq("name", ex.name).maybeSingle();
       exerciseId = data?.id;
     }
-    if (!exerciseId) return;
+    if (!exerciseId) {
+      setStartError("That workout didn't start. Try again.");
+      return;
+    }
     const { data, error } = await supabase
       .from("workouts")
       .insert({ started_at: new Date().toISOString(), user_id: user.id })
       .select("id")
       .single();
-    if (error || !data) return;
+    if (error || !data) {
+      setStartError("That workout didn't start. Try again.");
+      return;
+    }
     localStorage.setItem("liftlog-template-exercises", JSON.stringify([exerciseId]));
     localStorage.setItem(ACTIVE_WORKOUT_KEY, data.id);
     router.push("/session");
@@ -226,7 +237,7 @@ function ExercisesInner() {
     return (
       <section className="library-keep screen" data-screen="detail">
         <header className="subhead">
-          <button type="button" aria-label="Back" onClick={() => { setOpenId(null); setTab("Instructions"); }}>
+          <button type="button" aria-label="Back" onClick={() => { setOpenId(null); setTab("Instructions"); setStartError(""); }}>
             <Icon name="back" />
           </button>
           <span />
@@ -284,6 +295,7 @@ function ExercisesInner() {
           )}
         </div>
         <div className="sticky-cta">
+          {startError ? <p className="err" role="alert">{startError}</p> : null}
           <button className="btn btn-ink btn-block" type="button" onClick={() => startExercise(open)}>Start Workout</button>
         </div>
       </section>
