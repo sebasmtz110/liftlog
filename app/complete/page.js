@@ -64,7 +64,12 @@ function CompleteInner() {
   return (
     <section className="page">
       <ConfigBanner />
-      {loading || !data ? <p className="loading">Loading the session…</p> : (
+      {loading ? <p className="loading">Loading the session…</p> : !data ? (
+        <>
+          <p className="empty">That session isn't available.</p>
+          <button className="btn btn-line" type="button" onClick={() => router.push("/")}>Back to today</button>
+        </>
+      ) : (
         <>
           <h1>{data.name}</h1>
           <p className="lede">Session finished. {fmtDur(data.durMs)}.</p>
