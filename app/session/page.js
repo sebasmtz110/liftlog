@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY, loadWorkoutSnapshot, saveWorkoutSnapshot, clearWorkoutSnapshot } from "../../lib/supabase";
 import { catalogByName } from "../../lib/catalog";
@@ -24,6 +24,222 @@ function fmtVol(v) {
   return String(n);
 }
 
+const StablePlates = memo(Plates);
+
+/** Elapsed session clock. Owns the 1s tick so the page does not re-render for it. */
+const ElapsedClock = memo(function ElapsedClock({ startedAt }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const elapsed = startedAt ? Math.floor((now - new Date(startedAt).getTime()) / 1000) : 0;
+  return <>{clock(elapsed)} in</>;
+});
+
+const LoggedPanel = memo(function LoggedPanel({ sets, volume }) {
+  if (!sets.length) return null;
+  return (
+    <section className="panel" style={{ marginTop: 14 }}>
+      <div className="panel-head"><h2>Logged</h2><span className="note num">{Math.round(volume).toLocaleString()} lb</span></div>
+      {sets.map((s) => (
+        <div key={s.id} className="lift">
+          <span className="lift-copy"><strong>Set {s.set_number}</strong></span>
+          <span className="scheme num">{s.weight} lb × {s.reps}</span>
+        </div>
+      ))}
+    </section>
+  );
+});
+
+const QueuePanel = memo(function QueuePanel({ grouped, focusId, onFocus, onAdd }) {
+  return (
+    <section className="panel queue" style={{ marginTop: 14 }}>
+      <div className="panel-head">
+        <h2>Queue</h2>
+        <button className="text-btn" type="button" onClick={onAdd}>Add exercise</button>
+      </div>
+      {grouped.map((g) => (
+        <button
+          key={g.exercise.id}
+          type="button"
+          className={g.exercise.id === focusId ? "is-current" : ""}
+          onClick={() => onFocus(g.exercise.id)}
+        >
+          <span>
+            <strong>{g.exercise.name}</strong>
+            <small>{`${g.sets.length} ${g.sets.length === 1 ? "set" : "sets"} logged`}</small>
+          </span>
+        </button>
+      ))}
+    </section>
+  );
+});
+
+/** Keeps the previous cover until the next photo has loaded. */
+const StableCover = memo(function StableCover({ src }) {
+  const [shown, setShown] = useState(src);
+  useEffect(() => {
+    if (!src || src === shown) return undefined;
+    let cancel = false;
+    const img = new Image();
+    img.onload = () => { if (!cancel) setShown(src); };
+    img.src = src;
+    if (img.complete && img.naturalWidth) setShown(src);
+    return () => { cancel = true; };
+  }, [src, shown]);
+  return (
+    <div className="cover-full">
+      <img src={shown || src} alt="" />
+    </div>
+  );
+});
+
+const OrderSheet = memo(function OrderSheet({ rows, onClose, onPick, onReorder }) {
+  const listRef = useRef(null);
+  const dragState = useRef(null);
+  const justDraggedRef = useRef(false);
+
+  function rowEls() {
+    return listRef.current ? [...listRef.current.querySelectorAll("[data-exid]")] : [];
+  }
+
+  function clearStyles(els) {
+    for (const el of els) {
+      el.style.transform = "";
+      el.style.zIndex = "";
+    }
+  }
+
+  function placeRows(d) {
+    const order = d.rows.map((_, i) => i);
+    const [moved] = order.splice(d.index, 1);
+    order.splice(d.target, 0, moved);
+    let y = d.rows[0]?.top ?? 0;
+    const nextTop = new Array(d.rows.length);
+    for (const i of order) {
+      nextTop[i] = y;
+      y += d.rows[i].height;
+    }
+    d.rows.forEach((row, i) => {
+      if (i === d.index) {
+        row.el.style.transform = `translateY(${d.dy}px)`;
+        row.el.style.zIndex = "5";
+        return;
+      }
+      const shift = nextTop[i] - row.top;
+      row.el.style.transform = shift ? `translateY(${shift}px)` : "";
+      row.el.style.zIndex = "";
+    });
+  }
+
+  function startDrag(e, index) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
+    const els = rowEls();
+    dragState.current = {
+      pid: e.pointerId,
+      startY: e.clientY,
+      index,
+      target: index,
+      active: false,
+      dy: 0,
+      rows: els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { el, top: r.top, height: r.height || 64 };
+      }),
+    };
+  }
+
+  function moveDrag(e) {
+    const d = dragState.current;
+    if (!d || e.pointerId !== d.pid) return;
+    const dy = e.clientY - d.startY;
+    if (!d.active) {
+      if (Math.abs(dy) < 10) return;
+      d.active = true;
+      justDraggedRef.current = true;
+      d.rows = rowEls().map((el) => {
+        const r = el.getBoundingClientRect();
+        return { el, top: r.top, height: r.height || 64 };
+      });
+    }
+    d.dy = dy;
+    let target = 0;
+    let seen = 0;
+    for (let i = 0; i < d.rows.length; i++) {
+      if (i === d.index) continue;
+      const mid = d.rows[i].top + d.rows[i].height / 2;
+      if (e.clientY < mid) {
+        target = seen;
+        break;
+      }
+      seen += 1;
+      target = seen;
+    }
+    const targetChanged = target !== d.target;
+    d.target = target;
+    if (targetChanged) placeRows(d);
+    else if (d.rows[d.index]) {
+      d.rows[d.index].el.style.transform = `translateY(${dy}px)`;
+      d.rows[d.index].el.style.zIndex = "5";
+    }
+  }
+
+  function endDrag(e) {
+    const d = dragState.current;
+    if (!d || (e && e.pointerId !== d.pid)) return;
+    dragState.current = null;
+    clearStyles(d.rows.map((row) => row.el));
+    if (d.active && d.target !== d.index) {
+      const next = rows.map((g) => g.exercise.id);
+      const [moved] = next.splice(d.index, 1);
+      next.splice(d.target, 0, moved);
+      onReorder(next);
+    }
+    if (d.active) setTimeout(() => { justDraggedRef.current = false; }, 80);
+  }
+
+  return (
+    <div className="sheet">
+      <button className="sheet-scrim" type="button" aria-label="Close" onClick={onClose} />
+      <div className="sheet-card" role="dialog" aria-modal="true" aria-label="Exercise order">
+        <header>
+          <h2>Exercise order</h2>
+          <button className="text-btn" type="button" onClick={onClose}>Done</button>
+        </header>
+        <p className="note">Hold the handle and drag. Tap a name to switch to it.</p>
+        <div ref={listRef} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
+          {rows.map((g, i) => {
+            const done = g.sets.length;
+            return (
+              <div
+                key={g.exercise.id}
+                data-exid={g.exercise.id}
+                className="reorder-row"
+                onClick={() => {
+                  if (justDraggedRef.current) return;
+                  onPick(g.exercise.id);
+                }}
+              >
+                <span className="drag-handle" role="button" aria-label={`Drag to reorder ${g.exercise.name}`} onPointerDown={(e) => startDrag(e, i)} onClick={(e) => e.stopPropagation()}>
+                  <Icon name="grip" />
+                </span>
+                <span className="lift-copy">
+                  <strong>{g.exercise.name}</strong>
+                  <small>{`${done} ${done === 1 ? "set" : "sets"}`}</small>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export default function Session() {
   const router = useRouter();
   const [workoutId, setWorkoutId] = useState(null);
@@ -46,18 +262,16 @@ export default function Session() {
   const [logOpen, setLogOpen] = useState(false);
   const [motionOpen, setMotionOpen] = useState(false);
   const [motionTime, setMotionTime] = useState(12);
-  const [now, setNow] = useState(0);
+  const [logError, setLogError] = useState("");
   const slotRef = useRef(null);
   const motionRef = useRef(null);
   const [orderOpen, setOrderOpen] = useState(false);
-  const [drag, setDrag] = useState(null); // {id, index, target, dy, h} while reordering
   const [logging, setLogging] = useState(false);
   const [history, setHistory] = useState([]);
-  const listRef = useRef(null);
-  const dragState = useRef(null);
-  const justDraggedRef = useRef(false);
   const hydratedRef = useRef(false);
   const orderRef = useRef([]);
+  const setsRef = useRef([]);
+  const refreshGen = useRef(0);
   const loggingRef = useRef(false);
   const restEndsRef = useRef(null);
 
@@ -96,6 +310,7 @@ export default function Session() {
         }
       } catch { /* ignore */ }
       if (seeded.length) {
+        orderRef.current = seeded;
         setAddedExerciseIds(seeded);
         setFocusId(seeded[0]);
         const next = {};
@@ -137,11 +352,6 @@ export default function Session() {
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  useEffect(() => {
     if (!isConfigured) return;
     (async () => {
       const supabase = await getSupabase();
@@ -174,35 +384,66 @@ export default function Session() {
     });
   }, [workoutId, addedExerciseIds, drafts, focusId, restOn, restDur]);
 
+  // Countdown is the time left until restEndsRef, not a decrement. A throttled
+  // background interval then catches up on the next tick instead of drifting.
   useEffect(() => {
-    if (!restOn || restLeft === null || restLeft <= 0) {
-      if (restLeft === 0) {
+    if (!restOn || !restEndsRef.current) return undefined;
+    const tick = () => {
+      if (!restEndsRef.current) return;
+      const left = Math.max(0, Math.ceil((restEndsRef.current - Date.now()) / 1000));
+      setRestLeft(left);
+      if (left <= 0) {
+        restEndsRef.current = null;
         setRestOn(false);
         setShowRest(false);
         setRestLeft(null);
       }
-      return;
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    const onVis = () => { if (document.visibilityState === "visible") tick(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [restOn]);
+
+  useEffect(() => {
+    if (!catalog.length || !addedExerciseIds.length) return;
+    for (const id of addedExerciseIds) {
+      const row = catalog.find((e) => e.id === id);
+      if (!row) continue;
+      const src = visualForExercise(row.name) || plateForExercise(row.name);
+      if (!src) continue;
+      const img = new Image();
+      img.src = src;
     }
-    const t = setInterval(() => setRestLeft((s) => Math.max(0, (s ?? 1) - 1)), 1000);
-    return () => clearInterval(t);
-  }, [restOn, restLeft === null, restLeft <= 0]);
+  }, [addedExerciseIds, catalog]);
 
   async function refreshSets(id, seeded = []) {
+    const gen = ++refreshGen.current;
     const supabase = await getSupabase();
-    if (!supabase) return;
+    if (!supabase || gen !== refreshGen.current) return;
     const { data } = await supabase
       .from("sets")
       .select("id, set_number, reps, weight, exercise_id, exercises(name, muscle_group)")
       .eq("workout_id", id)
       .order("created_at", { ascending: true });
-    if (!data) return;
-    setSets(data);
-    setAddedExerciseIds((prev) => {
-      const fromSets = data.map((s) => s.exercise_id);
-      const next = [...new Set([...seeded, ...prev, ...fromSets])];
-      setFocusId((cur) => cur || next[0] || null);
-      return next;
+    if (!data || gen !== refreshGen.current) return;
+    const extras = setsRef.current.filter((s) => {
+      if (data.some((row) => row.id === s.id)) return false;
+      if (s.pending && data.some((row) => row.exercise_id === s.exercise_id && row.set_number === s.set_number)) return false;
+      return Boolean(s.pending) || data.every((row) => row.id !== s.id);
     });
+    const nextSets = [...data, ...extras];
+    setsRef.current = nextSets;
+    setSets(nextSets);
+    const fromSets = data.map((s) => s.exercise_id);
+    const nextIds = [...new Set([...seeded, ...orderRef.current, ...fromSets])];
+    orderRef.current = nextIds;
+    setAddedExerciseIds(nextIds);
+    setFocusId((cur) => cur || nextIds[0] || null);
   }
 
   const grouped = useMemo(() => {
@@ -264,44 +505,88 @@ export default function Session() {
   }
 
   function nudge(dir) {
-    if (restOn) {
+    if (restOn && restEndsRef.current) {
+      const nextEnd = restEndsRef.current + dir * 15 * 1000;
+      const left = Math.min(600, Math.max(0, Math.ceil((nextEnd - Date.now()) / 1000)));
+      restEndsRef.current = Date.now() + left * 1000;
+      setRestLeft(left);
       setRestDur((v) => Math.min(600, Math.max(15, v + dir * 15)));
-      setRestLeft((v) => v == null ? v : Math.min(600, Math.max(0, v + dir * 15)));
-      if (restEndsRef.current) restEndsRef.current += dir * 15 * 1000;
       return;
     }
     bump(metric, metric === "weight" ? dir * 5 : dir);
   }
 
+  function toggleRest() {
+    if (restOn) {
+      const left = restEndsRef.current
+        ? Math.max(0, Math.ceil((restEndsRef.current - Date.now()) / 1000))
+        : restLeft;
+      setRestLeft(left);
+      setRestOn(false);
+      return;
+    }
+    const left = restLeft ?? restDur;
+    restEndsRef.current = Date.now() + left * 1000;
+    setRestLeft(left);
+    setRestOn(true);
+    setShowRest(true);
+  }
+
+  function skipRest() {
+    restEndsRef.current = null;
+    setRestOn(false);
+    setRestLeft(null);
+    setShowRest(false);
+  }
+
   async function logSet() {
     if (!focus || !workoutId || loggingRef.current) return;
-    const draft = drafts[focus.exercise.id] ?? {};
+    const exercise = focus.exercise;
+    const draft = drafts[exercise.id] ?? {};
     const reps = parseInt(draft.reps, 10);
     const weight = parseFloat(draft.weight);
     if (!reps || reps <= 0) return;
     loggingRef.current = true;
-    setLogging(true);
+    const existing = setsRef.current.filter((s) => s.exercise_id === exercise.id).length;
+    const tempId = `pending-${Date.now()}-${existing + 1}`;
+    const optimistic = {
+      id: tempId,
+      set_number: existing + 1,
+      reps,
+      weight: Number.isFinite(weight) ? weight : 0,
+      exercise_id: exercise.id,
+      exercises: { name: exercise.name, muscle_group: exercise.muscle_group },
+      pending: true,
+    };
+    const nextSets = [...setsRef.current, optimistic];
+    setsRef.current = nextSets;
+    setSets(nextSets);
+    setLogError("");
+    setLogOpen(false);
+    restEndsRef.current = Date.now() + restDur * 1000;
+    setRestLeft(restDur);
+    setRestOn(true);
+    setShowRest(true);
+    setLogging(false);
+    loggingRef.current = false;
     try {
-      const existing = sets.filter((s) => s.exercise_id === focus.exercise.id).length;
       const supabase = await getSupabase();
-      if (!supabase) return;
-      const { error } = await supabase.from("sets").insert({
+      if (!supabase) throw new Error("no-client");
+      const { data, error } = await supabase.from("sets").insert({
         workout_id: workoutId,
-        exercise_id: focus.exercise.id,
-        set_number: existing + 1,
+        exercise_id: exercise.id,
+        set_number: optimistic.set_number,
         reps,
-        weight: Number.isFinite(weight) ? weight : 0,
-      });
-      if (error) return;
-      await refreshSets(workoutId);
-      setLogOpen(false);
-      restEndsRef.current = Date.now() + restDur * 1000;
-      setRestLeft(restDur);
-      setRestOn(true);
-      setShowRest(true);
-    } finally {
-      loggingRef.current = false;
-      setLogging(false);
+        weight: optimistic.weight,
+      }).select("id, set_number, reps, weight, exercise_id").single();
+      if (error || !data) throw error || new Error("insert");
+      setsRef.current = setsRef.current.map((s) => (s.id === tempId ? { ...data, exercises: optimistic.exercises } : s));
+      setSets(setsRef.current);
+      refreshSets(workoutId);
+    } catch {
+      setsRef.current = setsRef.current.filter((s) => s.id !== tempId);
+      setSets(setsRef.current);
+      setLogError("That set didn't save. Log it again.");
     }
   }
 
@@ -353,80 +638,22 @@ export default function Session() {
     router.push("/");
   }
 
-  // ---- Drag-and-drop exercise reordering (Pointer Events: touch + mouse) ----
   const orderList = useMemo(
     () => addedExerciseIds.map((id) => grouped.find((g) => g.exercise.id === id)).filter(Boolean),
     [addedExerciseIds, grouped]
   );
 
-  function exerciseRows() {
-    return listRef.current ? [...listRef.current.querySelectorAll("[data-exid]")] : [];
-  }
-
-  function startDrag(e, exId) {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
-    const rows = exerciseRows();
-    const index = rows.findIndex((r) => r.dataset.exid === exId);
-    if (index < 0) return;
-    dragState.current = {
-      id: exId, pid: e.pointerId, startY: e.clientY, index, target: index,
-      active: false, h: rows[index].getBoundingClientRect().height || 64,
-    };
-  }
-
-  function moveDrag(e) {
-    const d = dragState.current;
-    if (!d || e.pointerId !== d.pid) return;
-    const dy = e.clientY - d.startY;
-    if (!d.active) {
-      if (Math.abs(dy) < 10) return;
-      d.active = true;
-      justDraggedRef.current = true;
-      setDrag({ id: d.id, index: d.index, target: d.index, dy: 0, h: d.h });
-    }
-    // Target = insertion index within the list excluding the dragged row.
-    const rows = exerciseRows();
-    let target = 0;
-    let seen = 0;
-    for (let i = 0; i < rows.length; i++) {
-      if (i === d.index) continue;
-      const r = rows[i].getBoundingClientRect();
-      if (e.clientY < r.top + r.height / 2) { target = seen; break; }
-      seen++;
-      target = seen;
-    }
-    d.target = target;
-    setDrag((prev) => (prev ? { ...prev, dy, target } : prev));
-  }
-
-  function endDrag(e) {
-    const d = dragState.current;
-    if (!d || (e && e.pointerId !== d.pid)) return;
-    dragState.current = null;
-    const { active, index, target } = d;
-    setDrag(null);
-    if (active && target !== index) {
-      const next = [...orderRef.current];
-      const [moved] = next.splice(index, 1);
-      next.splice(target, 0, moved);
-      setAddedExerciseIds(next);
-    }
-    if (active) setTimeout(() => { justDraggedRef.current = false; }, 80);
-  }
-
-  function reorderRowStyle(i, exId) {
-    if (!drag) return undefined;
-    if (exId === drag.id) return { transform: `translateY(${drag.dy}px)`, zIndex: 5 };
-    const h = drag.h;
-    const oi = i < drag.index ? i : i - 1; // position within list excluding dragged row
-    if (drag.target < drag.index && oi >= drag.target && oi < drag.index) return { transform: `translateY(${h}px)` };
-    if (drag.target > drag.index && oi >= drag.index && oi < drag.target) return { transform: `translateY(${-h}px)` };
-    return undefined;
-  }
-
+  const openPicker = useCallback(() => setPickerOpen(true), []);
+  const focusExercise = useCallback((id) => setFocusId(id), []);
+  const closeOrder = useCallback(() => setOrderOpen(false), []);
+  const pickFromOrder = useCallback((id) => {
+    setFocusId(id);
+    setOrderOpen(false);
+  }, []);
+  const reorderExercises = useCallback((next) => {
+    orderRef.current = next;
+    setAddedExerciseIds(next);
+  }, []);
 
   if (loading) {
     return <section className="page"><p className="loading">Loading the session…</p></section>;
@@ -448,7 +675,6 @@ export default function Session() {
   const planned = meta?.sets || Math.max(exSets.length + 1, 4);
   const setNum = Math.min(planned, exSets.length + 1);
   const volume = volumeOf(sets);
-  const elapsed = startedAt && now ? Math.floor((now - new Date(startedAt).getTime()) / 1000) : 0;
   const photo = focus ? visualForExercise(focus.exercise.name) : null;
   const weightLabel = meta?.bodyweight && Number(draft.weight) < 0.5 ? "BW" : (draft.weight || "0");
   const pounds = Number(draft.weight);
@@ -524,14 +750,14 @@ export default function Session() {
               <p className="lede">
                 Set {setNum} of {planned}
                 {previous ? ` · Last time ${previous.weight} lb × ${previous.reps}` : " · No earlier set in the log"}
-                {" · "}{clock(elapsed)} in
+                {" · "}<ElapsedClock startedAt={startedAt} />
               </p>
             </div>
           </div>
-          <div className="cover-full">
-            <img src={photo || plateForExercise(focus.exercise.name || "")} alt="" />
           </div>
-          {weightLabel === "BW" ? <p className="figure">Bodyweight</p> : <Plates pounds={pounds} />}
+          <StableCover src={photo || plateForExercise(focus.exercise.name || "")} />
+          <div className="focus-swap" key={`${focus.exercise.id}-set`}>
+          {weightLabel === "BW" ? <p className="figure">Bodyweight</p> : <StablePlates pounds={pounds} />}
           <div className="pair">
             <div className={`metric${metric === "weight" ? " is-on" : ""}`}>
               <span>Weight</span>
@@ -563,16 +789,17 @@ export default function Session() {
             <button className="btn btn-quiet" type="button" onClick={() => router.push("/coach")}>Coach</button>
           </div>
           </div>
+          {logError ? <p className="note" role="alert">{logError}</p> : null}
           {showRest && (
             <div className="rest" role="region" aria-label="Rest">
               <div className="stripe" />
               <p className="figure">{clock(restLeft ?? 0)}</p>
               <p>{restOn ? "Resting before the next set." : "Rest is paused."}</p>
               <div className="title-actions" style={{ marginTop: 10 }}>
-                <button className="btn btn-line" type="button" onClick={() => setRestOn((v) => !v)}>{restOn ? "Pause" : "Resume"}</button>
+                <button className="btn btn-line" type="button" onClick={toggleRest}>{restOn ? "Pause" : "Resume"}</button>
                 <button className="btn btn-line" type="button" onClick={() => nudge(1)}>+15s</button>
                 <button className="btn btn-line" type="button" onClick={() => nudge(-1)}>−15s</button>
-                <button className="btn btn-quiet" type="button" onClick={() => { setRestOn(false); setRestLeft(null); setShowRest(false); }}>Skip rest</button>
+                <button className="btn btn-quiet" type="button" onClick={skipRest}>Skip rest</button>
               </div>
             </div>
           )}
@@ -589,83 +816,19 @@ export default function Session() {
               </div>
             </div>
           )}
-          {exSets.length > 0 && (
-            <section className="panel" style={{ marginTop: 14 }}>
-              <div className="panel-head"><h2>Logged</h2><span className="note num">{Math.round(volume).toLocaleString()} lb</span></div>
-              {exSets.map((s) => (
-                <div key={s.id} className="lift">
-                  <span className="lift-copy"><strong>Set {s.set_number}</strong></span>
-                  <span className="scheme num">{s.weight} lb × {s.reps}</span>
-                </div>
-              ))}
-            </section>
-          )}
-          <section className="panel queue" style={{ marginTop: 14 }}>
-            <div className="panel-head">
-              <h2>Queue</h2>
-              <button className="text-btn" type="button" onClick={() => setPickerOpen(true)}>Add exercise</button>
-            </div>
-            {grouped.map((g) => (
-              <button
-                key={g.exercise.id}
-                type="button"
-                className={g.exercise.id === focus.exercise.id ? "is-current" : ""}
-                onClick={() => setFocusId(g.exercise.id)}
-              >
-                <span>
-                  <strong>{g.exercise.name}</strong>
-                  <small>{`${g.sets.length} ${g.sets.length === 1 ? "set" : "sets"} logged`}</small>
-                </span>
-              </button>
-            ))}
-          </section>
+          <LoggedPanel sets={exSets} volume={volume} />
+          <QueuePanel grouped={grouped} focusId={focus.exercise.id} onFocus={focusExercise} onAdd={openPicker} />
         </>
       ) : (
         <>
           <h1>Add an exercise</h1>
           <p className="lede">The session has no lifts yet.</p>
-          <button className="btn btn-primary" type="button" onClick={() => setPickerOpen(true)}>Choose exercise</button>
+          <button className="btn btn-primary" type="button" onClick={openPicker}>Choose exercise</button>
         </>
       )}
 
       {orderOpen && (
-        <div className="sheet">
-          <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => setOrderOpen(false)} />
-          <div className="sheet-card" role="dialog" aria-modal="true" aria-label="Exercise order">
-            <header>
-              <h2>Exercise order</h2>
-              <button className="text-btn" type="button" onClick={() => setOrderOpen(false)}>Done</button>
-            </header>
-            <p className="note">Hold the handle and drag. Tap a name to switch to it.</p>
-            <div ref={listRef} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
-              {orderList.map((g, i) => {
-                const done = g.sets.length;
-                const isDrag = drag && drag.id === g.exercise.id;
-                return (
-                  <div
-                    key={g.exercise.id}
-                    data-exid={g.exercise.id}
-                    className="reorder-row"
-                    style={reorderRowStyle(i, g.exercise.id)}
-                    onClick={() => {
-                      if (justDraggedRef.current) return;
-                      setFocusId(g.exercise.id);
-                      setOrderOpen(false);
-                    }}
-                  >
-                    <span className="drag-handle" role="button" aria-label={`Drag to reorder ${g.exercise.name}`} onPointerDown={(e) => startDrag(e, g.exercise.id)} onClick={(e) => e.stopPropagation()}>
-                      <Icon name="grip" />
-                    </span>
-                    <span className="lift-copy">
-                      <strong>{g.exercise.name}</strong>
-                      <small>{`${done} ${done === 1 ? "set" : "sets"}`}</small>
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <OrderSheet rows={orderList} onClose={closeOrder} onPick={pickFromOrder} onReorder={reorderExercises} />
       )}
 
       {pickerOpen && (
@@ -685,14 +848,17 @@ export default function Session() {
               return !q || (e.name || "").toLowerCase().includes(q) || (e.muscle_group || "").toLowerCase().includes(q);
             }).map((e) => (
               <button key={e.id} className="row-link" type="button" onClick={() => {
-                setAddedExerciseIds((prev) => prev.includes(e.id) ? prev : [...prev, e.id]);
+                const prevIds = orderRef.current;
+                const nextIds = prevIds.includes(e.id) ? prevIds : [...prevIds, e.id];
+                orderRef.current = nextIds;
+                setAddedExerciseIds(nextIds);
                 const cat = catalogByName(e.name);
                 setDrafts((d) => ({ ...d, [e.id]: d[e.id] ?? { reps: String(cat?.reps ?? 8), weight: String(cat?.weight ?? 45) } }));
                 setFocusId(e.id);
                 setPickerOpen(false);
                 setQuery("");
               }}>
-                <img src={plateForExercise(e.name)} alt="" />
+                <img src={plateForExercise(e.name)} alt="" loading="lazy" decoding="async" />
                 <span className="row-copy"><strong>{e.name}</strong><small>{e.muscle_group}</small></span>
               </button>
             ))}
