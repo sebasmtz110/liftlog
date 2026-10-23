@@ -22,6 +22,7 @@ function HistoryInner() {
   const [editing, setEditing] = useState(false);
   const [editSets, setEditSets] = useState({});
   const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => { setOpenId(focus); }, [focus]);
 
@@ -41,7 +42,11 @@ function HistoryInner() {
       .not("ended_at", "is", null)
       .order("started_at", { ascending: false })
       .limit(40);
-    if (!error && data) setWorkouts(data);
+    if (error) setActionError("Couldn't load your sessions. Try again.");
+    else {
+      setActionError("");
+      setWorkouts(data ?? []);
+    }
     setLoading(false);
   };
 
@@ -60,13 +65,22 @@ function HistoryInner() {
 
   const saveEdits = async () => {
     setSaving(true);
+    setActionError("");
     const supabase = await getSupabase();
-    if (supabase) {
-      for (const [setId, vals] of Object.entries(editSets)) {
-        await supabase
-          .from("sets")
-          .update({ reps: Number(vals.reps) || 0, weight: Number(vals.weight) || 0 })
-          .eq("id", setId);
+    if (!supabase) {
+      setSaving(false);
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    for (const [setId, vals] of Object.entries(editSets)) {
+      const { error } = await supabase
+        .from("sets")
+        .update({ reps: Number(vals.reps) || 0, weight: Number(vals.weight) || 0 })
+        .eq("id", setId);
+      if (error) {
+        setSaving(false);
+        setActionError("That didn't save. Try again.");
+        return;
       }
     }
     setSaving(false);
@@ -76,10 +90,22 @@ function HistoryInner() {
 
   const deleteWorkout = async () => {
     if (!confirm("Delete this workout? This can't be undone.")) return;
+    setActionError("");
     const supabase = await getSupabase();
-    if (!supabase) return;
-    await supabase.from("sets").delete().eq("workout_id", open.id);
-    await supabase.from("workouts").delete().eq("id", open.id);
+    if (!supabase) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    const setsDel = await supabase.from("sets").delete().eq("workout_id", open.id);
+    if (setsDel.error) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    const workoutDel = await supabase.from("workouts").delete().eq("id", open.id);
+    if (workoutDel.error) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
     setOpenId(null);
     router.replace("/history");
     await load();
@@ -106,6 +132,7 @@ function HistoryInner() {
           <div>
             <h1>{dateStr}</h1>
             <p className="lede">{mins} min · {Math.round(volume).toLocaleString()} lb · {totalSets} {totalSets === 1 ? "set" : "sets"}</p>
+            {actionError ? <p className="err" role="alert">{actionError}</p> : null}
           </div>
           <div className="title-actions">
             <button className="btn btn-line" type="button" onClick={() => { setOpenId(null); setEditing(false); router.replace("/history"); }}>Back</button>
@@ -149,7 +176,8 @@ function HistoryInner() {
       <ConfigBanner />
       <h1>History</h1>
       <p className="lede">Finished sessions, newest first.</p>
-      {loading ? <p className="loading">Loading…</p> : workouts.length === 0 ? (
+      {actionError ? <p className="err" role="alert">{actionError}</p> : null}
+      {loading ? <p className="loading">Loading…</p> : actionError ? null : workouts.length === 0 ? (
         <p className="empty">No finished sessions yet.</p>
       ) : (
         <section className="panel" style={{ marginTop: 16 }}>
