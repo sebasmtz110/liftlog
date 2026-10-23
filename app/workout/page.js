@@ -63,6 +63,7 @@ function WorkoutInner() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [actionError, setActionError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   async function refresh() {
     if (!user || !isConfigured) {
@@ -74,7 +75,7 @@ function WorkoutInner() {
       setLoading(false);
       return;
     }
-    const [s, rows, { data: sessions }] = await Promise.all([
+    const [s, rows, sessionsResult] = await Promise.all([
       loadSplit(supabase, user.id),
       ensureCatalog(supabase),
       supabase
@@ -89,7 +90,11 @@ function WorkoutInner() {
     for (const row of rows || []) map[row.name.toLowerCase()] = row.id;
     setIdByName(map);
     setCatalog(rows || []);
-    setWorkouts(sessions ?? []);
+    if (sessionsResult.error) setLoadError("Couldn't load your sessions. Try again.");
+    else {
+      setLoadError("");
+      setWorkouts(sessionsResult.data ?? []);
+    }
     setPlans(loadDayPlans(user.id));
     setLoading(false);
   }
@@ -340,6 +345,8 @@ function WorkoutInner() {
         <h1>Workouts</h1>
         <p className="lede">No split is saved. Pick one and the week fills in.</p>
         {actionError ? <p className="err" role="alert">{actionError}</p> : null}
+        {loadError ? <p className="err" role="alert">{loadError}</p> : null}
+        {loadError ? <button className="text-btn" type="button" onClick={() => refresh()}>Try again</button> : null}
         <div className="panel" style={{ marginTop: 16 }}>
           {PRESET_ORDER.map((key) => (
             <button key={key} className="choice" type="button" disabled={saving} onClick={() => switchPreset(key)}>
@@ -410,6 +417,8 @@ function WorkoutInner() {
         <button className="text-btn" type="button" onClick={beginEdit}>Edit split</button>
       </div>
       {actionError ? <p className="err" role="alert">{actionError}</p> : null}
+      {loadError ? <p className="err" role="alert">{loadError}</p> : null}
+      {loadError ? <button className="text-btn" type="button" onClick={() => refresh()}>Try again</button> : null}
       <div className="seg" role="tablist">
         {[["week", "This week"], ["routines", "Routines"], ["recent", "Recent"]].map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
@@ -519,7 +528,7 @@ function WorkoutInner() {
 
       {tab === "recent" && (
         <div>
-          {workouts.length === 0 ? <p className="empty">No finished sessions yet.</p> : workouts.map((w, i) => {
+          {loadError ? null : workouts.length === 0 ? <p className="empty">No finished sessions yet.</p> : workouts.map((w, i) => {
             const when = new Date(w.started_at);
             const month = when.toLocaleDateString(undefined, { month: "long", year: "numeric" });
             const prev = i > 0 ? new Date(workouts[i - 1].started_at).toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "";

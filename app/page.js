@@ -40,6 +40,8 @@ export default function Home() {
   const [hasActive, setHasActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const [name, setName] = useState("");
 
   useEffect(() => {
@@ -48,26 +50,35 @@ export default function Home() {
     setHasActive(Boolean(localStorage.getItem(ACTIVE_WORKOUT_KEY)));
     if (user) setPlans(loadDayPlans(user.id));
     if (!isConfigured) return;
+    let cancelled = false;
     (async () => {
       const supabase = await getSupabase();
-      if (!supabase) return;
+      if (!supabase || cancelled) return;
       const rows = await ensureCatalog(supabase);
+      if (cancelled) return;
       const map = {};
       for (const row of rows || []) map[row.name.toLowerCase()] = row.id;
       setIdByName(map);
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("workouts")
         .select("id, started_at, ended_at, sets(reps, weight, exercises(id, name))")
         .order("started_at", { ascending: false })
         .limit(80);
-      setWorkouts((data ?? []).filter((w) => w.ended_at));
+      if (cancelled) return;
+      if (error) setLoadError("Couldn't load your sessions. Try again.");
+      else {
+        setLoadError("");
+        setWorkouts((data ?? []).filter((w) => w.ended_at));
+      }
       if (user) {
         setSplit(await loadSplit(supabase, user.id));
+        if (cancelled) return;
         const { data: prof } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
-        if (prof?.display_name) setName(prof.display_name);
+        if (!cancelled && prof?.display_name) setName(prof.display_name);
       }
     })();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user, reloadKey]);
 
   const todayIdx = now ? (now.getDay() + 6) % 7 : 0;
   const todayIso = now ? localIso(now) : "";
@@ -191,6 +202,8 @@ export default function Home() {
       <ConfigBanner />
       <p className="home-greet">Welcome back{name ? `, ${name.split(" ")[0]}` : ""}</p>
       <p className="home-day">{when}</p>
+      {loadError ? <p className="err" role="alert">{loadError}</p> : null}
+      {loadError ? <button className="text-btn" type="button" onClick={() => setReloadKey((n) => n + 1)}>Try again</button> : null}
       <div className="tiles">
         <button type="button" className="tile" onClick={() => router.push("/workout?tab=routines")}>
           <img src="/photos/split-bells.jpg" alt="" />
@@ -202,7 +215,7 @@ export default function Home() {
         </button>
         <button type="button" className="tile" onClick={() => router.push("/stats")}>
           <img src="/photos/progress-pullup.jpg" alt="" style={{ objectPosition: "center 22%" }} />
-          <span className="tile-copy"><span className="name">Progress</span><span className="sets">{weekVolume.toLocaleString()} lb this week</span></span>
+          <span className="tile-copy"><span className="name">Progress</span><span className="sets">{loadError ? "" : `${weekVolume.toLocaleString()} lb this week`}</span></span>
         </button>
       </div>
       <div className="picks" role="group" aria-label="Today's workout">
@@ -241,13 +254,13 @@ export default function Home() {
           <Icon name="workouts" /><span><span className="name">Routines</span><span className="sets">The split</span></span>
         </button>
         <button type="button" className="dest" onClick={() => router.push("/history")}>
-          <Icon name="progress" /><span><span className="name">History</span><span className="sets">{finished.length} {finished.length === 1 ? "workout" : "workouts"}</span></span>
+          <Icon name="progress" /><span><span className="name">History</span><span className="sets">{loadError ? "" : `${finished.length} ${finished.length === 1 ? "workout" : "workouts"}`}</span></span>
         </button>
         <button type="button" className="dest" onClick={() => router.push("/exercises")}>
           <Icon name="library" /><span><span className="name">Exercises</span><span className="sets">{EXERCISES.length} in the library</span></span>
         </button>
         <button type="button" className="dest" onClick={() => lastSession && router.push(`/history?id=${lastSession.id}`)} disabled={!lastSession}>
-          <Icon name="home" /><span><span className="name">Last session</span><span className="sets">{lastSession ? `${lastNames[0] || "Session"} · ${lastWhen}` : "None yet"}</span></span>
+          <Icon name="home" /><span><span className="name">Last session</span><span className="sets">{loadError ? "" : lastSession ? `${lastNames[0] || "Session"} · ${lastWhen}` : "None yet"}</span></span>
         </button>
       </div>
     </section>
