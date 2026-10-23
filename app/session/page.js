@@ -634,11 +634,13 @@ export default function Session() {
       ? await supabase.from("workouts").update({ ended_at: new Date().toISOString() }).eq("id", workoutId)
       : { error: new Error("no-client") };
     setFinishing(false);
-    if (!error) {
-      localStorage.removeItem(ACTIVE_WORKOUT_KEY);
-      clearWorkoutSnapshot(workoutId);
-      router.push(`/complete?id=${workoutId}`);
+    if (error) {
+      setLogError("That didn't save. Try again.");
+      return;
     }
+    localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+    clearWorkoutSnapshot(workoutId);
+    router.push(`/complete?id=${workoutId}`);
   }
 
   async function discardWorkout() {
@@ -651,8 +653,16 @@ export default function Session() {
     setConfirmDiscard(false);
     const supabase = await getSupabase();
     if (supabase) {
-      await supabase.from("sets").delete().eq("workout_id", workoutId);
-      await supabase.from("workouts").delete().eq("id", workoutId);
+      const setsDel = await supabase.from("sets").delete().eq("workout_id", workoutId);
+      if (setsDel.error) {
+        setLogError("That didn't save. Try again.");
+        return;
+      }
+      const workoutDel = await supabase.from("workouts").delete().eq("id", workoutId);
+      if (workoutDel.error) {
+        setLogError("That didn't save. Try again.");
+        return;
+      }
     }
     localStorage.removeItem(ACTIVE_WORKOUT_KEY);
     clearWorkoutSnapshot(workoutId);
