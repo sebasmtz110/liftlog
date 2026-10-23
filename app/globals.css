@@ -446,7 +446,10 @@ input:disabled, select:disabled { color: var(--faint); }
   background: transparent;
   color: inherit;
   text-align: left;
+  transition: background 150ms ease, transform 100ms ease;
 }
+.queue button { cursor: pointer; }
+.queue button:active { transform: scale(.99); }
 .queue img, .logged img {
   width: 48px;
   height: 48px;
@@ -456,7 +459,12 @@ input:disabled, select:disabled { color: var(--faint); }
 }
 .queue button strong, .logged strong { display: block; font-weight: 500; }
 .queue button small, .logged small { color: var(--faint); font-size: 12px; }
-.queue button.is-current { background: var(--raised); }
+.queue button.is-current { background: var(--raised); box-shadow: inset 3px 0 0 var(--accent); }
+.q-bar { display: block; height: 3px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+.q-bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width 300ms ease; }
+.q-pill { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--accent); border-radius: 999px; padding: 4px 9px; }
+.q-done { font-size: 16px; font-weight: 700; color: var(--accent); padding-right: 4px; }
+.q-chev { font-size: 20px; color: var(--faint); padding-right: 4px; }
 .handle { color: var(--faint); font-size: 12px; }
 
 .sheet {

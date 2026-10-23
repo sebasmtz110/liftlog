@@ -53,25 +53,46 @@ const LoggedPanel = memo(function LoggedPanel({ sets, volume }) {
 });
 
 const QueuePanel = memo(function QueuePanel({ grouped, focusId, onFocus, onAdd }) {
+  const rows = grouped.map((g) => {
+    const planned = catalogByName(g.exercise.name)?.sets || null;
+    const logged = g.sets.length;
+    const last = logged ? g.sets[logged - 1] : null;
+    return { g, planned, logged, last, done: Boolean(planned && logged >= planned) };
+  });
+  const doneCount = rows.filter((r) => r.done).length;
   return (
     <section className="panel queue" style={{ marginTop: 14 }}>
       <div className="panel-head">
         <h2>Queue</h2>
+        <span className="note">{doneCount} of {rows.length} done</span>
         <button className="text-btn" type="button" onClick={onAdd}>Add exercise</button>
       </div>
-      {grouped.map((g) => (
-        <button
-          key={g.exercise.id}
-          type="button"
-          className={g.exercise.id === focusId ? "is-current" : ""}
-          onClick={() => onFocus(g.exercise.id)}
-        >
-          <span>
-            <strong>{g.exercise.name}</strong>
-            <small>{`${g.sets.length} ${g.sets.length === 1 ? "set" : "sets"} logged`}</small>
-          </span>
-        </button>
-      ))}
+      {rows.map(({ g, planned, logged, last, done }) => {
+        const current = g.exercise.id === focusId;
+        const lastText = last ? (Number(last.weight) > 0 ? `${last.weight} lb × ${last.reps}` : `BW × ${last.reps}`) : null;
+        const meta = planned
+          ? (logged ? `${logged} of ${planned} sets${lastText ? ` · last ${lastText}` : ""}` : `${planned} sets planned`)
+          : (logged ? `${logged} ${logged === 1 ? "set" : "sets"} logged${lastText ? ` · last ${lastText}` : ""}` : "Not started");
+        return (
+          <button
+            key={g.exercise.id}
+            type="button"
+            className={current ? "is-current" : ""}
+            aria-current={current || undefined}
+            onClick={() => onFocus(g.exercise.id)}
+          >
+            <img src={visualForExercise(g.exercise.name) || plateForExercise(g.exercise.name)} alt="" loading="lazy" decoding="async" />
+            <span>
+              <strong>{g.exercise.name}</strong>
+              <small>{meta}</small>
+              {planned ? (
+                <span className="q-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, (logged / planned) * 100)}%` }} /></span>
+              ) : null}
+            </span>
+            {current ? <span className="q-pill">Now</span> : done ? <span className="q-done" aria-label="Done">✓</span> : <span className="q-chev" aria-hidden="true">›</span>}
+          </button>
+        );
+      })}
     </section>
   );
 });
