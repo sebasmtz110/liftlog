@@ -62,6 +62,7 @@ function WorkoutInner() {
   const [editor, setEditor] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [actionError, setActionError] = useState("");
 
   async function refresh() {
     if (!user || !isConfigured) {
@@ -197,10 +198,12 @@ function WorkoutInner() {
   async function begin(plan) {
     if (!user || starting || !plan?.exerciseIds?.length) return;
     setStarting(true);
+    setActionError("");
     const supabase = await getSupabase();
     const id = supabase ? await startSession(supabase, user, { templateId: plan.templateId, exerciseIds: plan.exerciseIds }) : null;
     setStarting(false);
     if (id) router.push("/session");
+    else setActionError("That workout didn't start. Try again.");
   }
 
   function beginEdit() {
@@ -211,14 +214,23 @@ function WorkoutInner() {
 
   async function saveSplit() {
     setSaving(true);
+    setActionError("");
     const supabase = await getSupabase();
-    if (supabase) {
-      for (const d of draftDays) {
-        await supabase.from("split_days").update({
-          label: d.label,
-          is_rest: d.is_rest,
-          muscle_targets: d.is_rest ? "" : d.muscle_targets,
-        }).eq("id", d.id);
+    if (!supabase) {
+      setSaving(false);
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    for (const d of draftDays) {
+      const { error } = await supabase.from("split_days").update({
+        label: d.label,
+        is_rest: d.is_rest,
+        muscle_targets: d.is_rest ? "" : d.muscle_targets,
+      }).eq("id", d.id);
+      if (error) {
+        setSaving(false);
+        setActionError("That didn't save. Try again.");
+        return;
       }
     }
     setSaving(false);
@@ -228,43 +240,82 @@ function WorkoutInner() {
 
   async function switchPreset(key) {
     setSaving(true);
-    const built = buildSplit(key);
-    const supabase = await getSupabase();
-    if (supabase) await applySplit(supabase, user.id, built);
-    setSaving(false);
-    setEditing(false);
-    setSwitching(false);
-    refresh();
+    setActionError("");
+    try {
+      const built = buildSplit(key);
+      const supabase = await getSupabase();
+      if (!supabase) throw new Error("no-client");
+      await applySplit(supabase, user.id, built);
+      setEditing(false);
+      setSwitching(false);
+      refresh();
+    } catch {
+      setActionError("That didn't save. Try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function openEditor(tpl) {
     setEditor({
       id: tpl.id,
       name: tpl.name,
-      items: (tpl.template_exercises ?? []).slice().sort((a, b) => a.sort_order - b.sort_order).map((te, i) => ({
-        key: `x${i}`,
-        exercise_id: te.exercises.id,
-        name: te.exercises.name,
-        scheme: te.set_scheme,
-      })),
+      items: (tpl.template_exercises ?? []).slice().sort((a, b) => a.sort_order - b.sort_order).flatMap((te, i) => {
+        if (!te.exercises?.id) return [];
+        return [{
+          key: `x${i}`,
+          exercise_id: te.exercises.id,
+          name: te.exercises.name,
+          scheme: te.set_scheme,
+        }];
+      }),
     });
   }
 
   async function saveTemplate() {
     if (!editor) return;
     setSaving(true);
+    setActionError("");
     const supabase = await getSupabase();
-    if (supabase) {
-      await supabase.from("workout_templates").update({ name: editor.name.trim() || "Workout" }).eq("id", editor.id);
-      await supabase.from("template_exercises").delete().eq("template_id", editor.id);
-      let order = 0;
-      for (const it of editor.items) {
-        await supabase.from("template_exercises").insert({
-          template_id: editor.id,
-          exercise_id: it.exercise_id,
-          set_scheme: it.scheme.trim(),
-          sort_order: order++,
-        });
+    if (!supabase) {
+      setSaving(false);
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    const { data: oldRows, error: readErr } = await supabase.from("template_exercises").select("id").eq("template_id", editor.id);
+    if (readErr) {
+      setSaving(false);
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    const { error: nameErr } = await supabase.from("workout_templates").update({ name: editor.name.trim() || "Workout" }).eq("id", editor.id);
+    if (nameErr) {
+      setSaving(false);
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    let order = 0;
+    for (const it of editor.items) {
+      const { error } = await supabase.from("template_exercises").insert({
+        template_id: editor.id,
+        exercise_id: it.exercise_id,
+        set_scheme: it.scheme.trim(),
+        sort_order: order++,
+      });
+      if (error) {
+        setSaving(false);
+        setActionError("That didn't save. Try again.");
+        refresh();
+        return;
+      }
+    }
+    if (oldRows?.length) {
+      const { error } = await supabase.from("template_exercises").delete().in("id", oldRows.map((row) => row.id));
+      if (error) {
+        setSaving(false);
+        setActionError("That didn't save. Try again.");
+        refresh();
+        return;
       }
     }
     setSaving(false);
@@ -288,6 +339,7 @@ function WorkoutInner() {
         <ConfigBanner />
         <h1>Workouts</h1>
         <p className="lede">No split is saved. Pick one and the week fills in.</p>
+        {actionError ? <p className="err" role="alert">{actionError}</p> : null}
         <div className="panel" style={{ marginTop: 16 }}>
           {PRESET_ORDER.map((key) => (
             <button key={key} className="choice" type="button" disabled={saving} onClick={() => switchPreset(key)}>
@@ -357,6 +409,7 @@ function WorkoutInner() {
         <h1>Workouts</h1>
         <button className="text-btn" type="button" onClick={beginEdit}>Edit split</button>
       </div>
+      {actionError ? <p className="err" role="alert">{actionError}</p> : null}
       <div className="seg" role="tablist">
         {[["week", "This week"], ["routines", "Routines"], ["recent", "Recent"]].map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
