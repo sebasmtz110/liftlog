@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
 import { loadSplit, applySplit, buildSplit, PRESETS, PRESET_ORDER, DAY_NAMES } from "../../lib/presets";
-import { ensureCatalog, thumbFor } from "../../lib/catalog";
+import { ensureCatalog, FILTERS, thumbFor } from "../../lib/catalog";
 import { BUILTIN_ROUTINES, resolveNames, routineLabel } from "../../lib/routines";
 import { loadDayPlans, saveDayPlan } from "../../lib/dayPlans";
 import { startSession } from "../../lib/startSession";
@@ -62,6 +62,7 @@ function WorkoutInner() {
   const [editor, setEditor] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [pickerFilter, setPickerFilter] = useState("all");
   const [actionError, setActionError] = useState("");
   const [loadError, setLoadError] = useState("");
 
@@ -331,7 +332,8 @@ function WorkoutInner() {
   const filteredCatalog = catalog.filter((e) => {
     const q = query.trim().toLowerCase();
     const used = new Set((editor?.items ?? []).map((i) => i.exercise_id));
-    return !used.has(e.id) && (!q || e.name.toLowerCase().includes(q));
+    const muscleOk = pickerFilter === "all" || (e.muscle_group || "").toLowerCase() === pickerFilter;
+    return !used.has(e.id) && muscleOk && (!q || e.name.toLowerCase().includes(q));
   });
 
   if (loading || !now) {
@@ -562,7 +564,7 @@ function WorkoutInner() {
                   </div>
                 ))}
                 <div className="title-actions" style={{ marginTop: 12 }}>
-                  <button className="btn btn-line" type="button" onClick={() => setPickerOpen(true)}>Add exercise</button>
+                  <button className="btn btn-line" type="button" onClick={() => { setPickerFilter("all"); setPickerOpen(true); }}>Add exercise</button>
                   <button className="btn btn-primary" type="button" disabled={saving} onClick={saveTemplate}>{saving ? "Saving…" : "Save session"}</button>
                 </div>
               </>
@@ -570,11 +572,17 @@ function WorkoutInner() {
               <>
                 <header><h2>Add exercise</h2><button className="text-btn" type="button" onClick={() => setPickerOpen(false)}>Back</button></header>
                 <input className="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search exercises" />
+                <div className="chips">
+                  {FILTERS.slice(0, 6).map(([id, label]) => (
+                    <button key={id} type="button" aria-pressed={pickerFilter === id} onClick={() => setPickerFilter(id)}>{label}</button>
+                  ))}
+                </div>
                 {filteredCatalog.map((e) => (
                   <button key={e.id} className="log" type="button" onClick={() => {
                     setEditor((prev) => ({ ...prev, items: [...prev.items, { key: `n${Date.now()}`, exercise_id: e.id, name: e.name, scheme: "3x8-12" }] }));
                     setPickerOpen(false);
                     setQuery("");
+                    setPickerFilter("all");
                   }}>
                     <span className="log-name" style={{ fontSize: 16 }}>{e.name}</span>
                     <span className="log-meta">{e.muscle_group}</span>
