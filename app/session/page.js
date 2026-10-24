@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY, loadWorkoutSnapshot, saveWorkoutSnapshot, clearWorkoutSnapshot } from "../../lib/supabase";
-import { catalogByName } from "../../lib/catalog";
+import { catalogByName, FILTERS } from "../../lib/catalog";
 import { visualForExercise, plateForExercise } from "../../lib/exerciseVisuals";
 import ConfigBanner from "../components/ConfigBanner";
 import { volumeOf } from "../../lib/volume";
@@ -270,6 +270,7 @@ export default function Session() {
   const [addedExerciseIds, setAddedExerciseIds] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [pickerFilter, setPickerFilter] = useState("all");
   const [drafts, setDrafts] = useState({});
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
@@ -864,19 +865,25 @@ export default function Session() {
 
       {pickerOpen && (
         <div className="sheet">
-          <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => { setPickerOpen(false); setQuery(""); }} />
+          <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => { setPickerOpen(false); setQuery(""); setPickerFilter("all"); }} />
           <div className="sheet-card" role="dialog" aria-modal="true" aria-label="Add exercise">
             <header>
               <h2>Add exercise</h2>
-              <button className="text-btn" type="button" onClick={() => { setPickerOpen(false); setQuery(""); }}>Close</button>
+              <button className="text-btn" type="button" onClick={() => { setPickerOpen(false); setQuery(""); setPickerFilter("all"); }}>Close</button>
             </header>
             <label className="field">
               <span>Search</span>
               <input className="input" value={query} onChange={(e) => setQuery(e.target.value)} autoCapitalize="off" autoCorrect="off" spellCheck={false} />
             </label>
+            <div className="chips">
+              {FILTERS.slice(0, 6).map(([id, label]) => (
+                <button key={id} type="button" aria-pressed={pickerFilter === id} onClick={() => setPickerFilter(id)}>{label}</button>
+              ))}
+            </div>
             {catalog.filter((e) => {
               const q = query.trim().toLowerCase();
-              return !q || (e.name || "").toLowerCase().includes(q) || (e.muscle_group || "").toLowerCase().includes(q);
+              const muscleOk = pickerFilter === "all" || (e.muscle_group || "").toLowerCase() === pickerFilter;
+              return muscleOk && (!q || (e.name || "").toLowerCase().includes(q) || (e.muscle_group || "").toLowerCase().includes(q));
             }).map((e) => (
               <button key={e.id} className="row-link" type="button" onClick={() => {
                 const prevIds = orderRef.current;
@@ -888,6 +895,7 @@ export default function Session() {
                 setFocusId(e.id);
                 setPickerOpen(false);
                 setQuery("");
+                setPickerFilter("all");
               }}>
                 <img src={plateForExercise(e.name)} alt="" loading="lazy" decoding="async" />
                 <span className="row-copy"><strong>{e.name}</strong><small>{e.muscle_group}</small></span>
