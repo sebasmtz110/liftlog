@@ -802,10 +802,11 @@
   .library-keep .session-stats strong { font-size: 12px; }
   .library-keep .wk-dock { padding-bottom: 8px; }
 }
-@media (min-width: 700px) and (max-width: 959px) {
+@media (min-width: 660px) and (max-width: 959px) {
   .library-keep { background: #E8E8E6; }
-  .library-keep .stage { max-width: 430px; margin: 0 auto; background: var(--page); min-height: 100dvh; box-shadow: 0 0 0 1px rgba(0,0,0,.04); }
-  .library-keep .tabbar { left: 50%; right: auto; width: 430px; transform: translateX(-50%); }
+  .library-keep .stage { max-width: 600px; margin: 0 auto; background: var(--page); min-height: 100dvh; box-shadow: 0 0 0 1px rgba(0,0,0,.04); }
+  .library-keep .tabbar { left: 50%; right: auto; width: 600px; margin-left: -300px; }
+  .library-keep .log-card, .library-keep .keys, .library-keep .log-top { width: min(440px, 100%); margin-right: auto; }
 }
 
 @media (min-width: 960px) {
