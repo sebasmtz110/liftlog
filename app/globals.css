@@ -47,7 +47,7 @@ body[data-tone="workout"] {
 html, body { margin: 0; padding: 0; }
 html { background: var(--ground); }
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--ground);
   color: var(--text);
   font-family: var(--font);
@@ -62,8 +62,8 @@ a { color: inherit; }
 ::selection { background: #ead7d3; color: #141414; }
 body[data-tone="workout"] ::selection { background: #3a2a27; color: #f4f2ee; }
 
-.app { min-height: 100vh; }
-.stage { min-height: 100vh; min-width: 0; }
+.app { min-height: 100dvh; }
+.stage { min-height: 100dvh; min-width: 0; }
 
 .topbar {
   position: sticky;
@@ -595,14 +595,14 @@ input:disabled, select:disabled { color: var(--faint); }
   .figure { font-size: 24px; }
 }
 
-@media (min-width: 900px) {
+@media (min-width: 960px) {
   .app { display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); }
   .sidebar {
     display: flex;
     flex-direction: column;
     position: sticky;
     top: 0;
-    height: 100vh;
+    height: 100dvh;
     padding: 18px 16px 16px;
     border-right: 1px solid var(--border);
     background: var(--ground);
@@ -637,6 +637,6 @@ input:disabled, select:disabled { color: var(--faint); }
   .page { padding: 22px 29px 48px; }
   .columns { grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.7fr); align-items: start; }
   .sheet { align-items: center; justify-content: center; }
-  .sheet-card { width: min(560px, calc(100% - 48px)); border-radius: 20px; max-height: min(80vh, 760px); }
+  .sheet-card { width: min(560px, calc(100% - 48px)); border-radius: 20px; max-height: min(80dvh, 760px); }
   .is-immersive .page { max-width: 760px; }
 }
