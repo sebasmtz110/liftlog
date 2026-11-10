@@ -246,7 +246,7 @@ export default function Home() {
           <span className="tile-copy"><span className="name">Split</span></span>
         </button>
         <button type="button" className="tile" onClick={() => router.push("/exercises")}>
-          <Image src="/photos/library-you.jpg" alt="" width={472} height={841} sizes="(max-width: 960px) 50vw, 400px" style={{ objectPosition: "center 39%" }} />
+          <Image src="/photos/library-you-tile.jpg" alt="" width={472} height={282} sizes="(max-width: 960px) 50vw, 400px" />
           <span className="tile-copy"><span className="name">Library</span></span>
         </button>
         <button type="button" className="tile" onClick={() => router.push("/stats")}>
