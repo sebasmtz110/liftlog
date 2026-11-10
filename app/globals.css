@@ -634,7 +634,7 @@ input:disabled, select:disabled { color: var(--faint); }
     text-align: center;
   }
   .side-nav a .icon { width: 20px; height: 20px; }
-  .side-nav a.is-active { color: var(--text); background: var(--surface); }
+  .side-nav a.is-active { color: var(--accent); background: #FDECEA; box-shadow: inset 3px 0 0 var(--accent); }
   .side-foot { display: none; }
   .tabbar { display: none; }
 }
