@@ -90,7 +90,6 @@ export default function Home() {
   const weekStart = now ? mondayOf(now) : null;
   const finished = workouts;
   const weekWorkouts = weekStart ? finished.filter((w) => new Date(w.started_at) >= weekStart) : [];
-  const weekVolume = Math.round(weekWorkouts.reduce((sum, w) => sum + volumeOf(w.sets), 0));
   const loggedToday = finished.find((w) => localIso(w.started_at) === todayIso) || null;
   const lastSession = finished.find((w) => localIso(w.started_at) < todayIso) || null;
 
@@ -200,9 +199,6 @@ export default function Home() {
     else setStartError("That workout didn't start. Try again.");
   }
 
-  const splitLine = split
-    ? [...new Set((split.days ?? []).filter((d) => !d.is_rest).map((d) => d.label))].join(", ") || split.name
-    : "Set a split";
   const lastNames = [];
   for (const set of lastSession?.sets ?? []) {
     const name = set.exercises?.name;
@@ -222,15 +218,15 @@ export default function Home() {
       <div className="tiles">
         <button type="button" className="tile" onClick={() => router.push("/workout?tab=routines")}>
           <Image src="/photos/split-bells.jpg" alt="" width={1280} height={856} sizes="(max-width: 960px) 50vw, 400px" />
-          <span className="tile-copy"><span className="name">Split</span><span className="sets">{splitLine}</span></span>
+          <span className="tile-copy"><span className="name">Split</span></span>
         </button>
         <button type="button" className="tile" onClick={() => router.push("/exercises")}>
           <Image src="/photos/library-you.jpg" alt="" width={472} height={841} sizes="(max-width: 960px) 50vw, 400px" style={{ objectPosition: "center 39%" }} />
-          <span className="tile-copy"><span className="name">Library</span><span className="sets">{EXERCISES.length} exercises</span></span>
+          <span className="tile-copy"><span className="name">Library</span></span>
         </button>
         <button type="button" className="tile" onClick={() => router.push("/stats")}>
           <Image src="/photos/progress-pullup.jpg" alt="" width={1280} height={853} sizes="(max-width: 960px) 100vw, 800px" style={{ objectPosition: "center 22%" }} />
-          <span className="tile-copy"><span className="name">Progress</span><span className="sets">{loadError ? "" : `${weekVolume.toLocaleString()} lb this week`}</span></span>
+          <span className="tile-copy"><span className="name">Progress</span></span>
         </button>
       </div>
       <div className="picks" role="group" aria-label="Today's workout">
