@@ -98,9 +98,32 @@ function Shell({ children, withTabs }) {
 }
 
 /**
+ * Placeholder shown while the session/onboarding check is still running.
+ * The shell (rail/tabs/topbar) renders immediately around it, so the app
+ * never sits on a bare "Loading…" line while the check round-trips.
+ */
+function ShellSkeleton() {
+  return (
+    <section className="page" aria-hidden="true">
+      <div className="skel-wrap">
+        <div className="skel skel-title" />
+        <div className="skel skel-line" />
+        <div className="skel-tiles">
+          <div className="skel skel-tile" />
+          <div className="skel skel-tile" />
+          <div className="skel skel-tile-wide" />
+        </div>
+        <div className="skel skel-line" />
+        <div className="skel skel-block" />
+      </div>
+    </section>
+  );
+}
+
+/**
  * Decides what the app shell shows:
  *  - Supabase not configured -> the app as-is (ConfigBanner explains setup)
- *  - session loading         -> spinner
+ *  - session loading / onboarding check -> shell + skeleton (shell first)
  *  - no user                 -> sign in / create account (no tab bar)
  *  - new user                -> onboarding quiz (no tab bar)
  *  - signed in               -> the app
@@ -175,8 +198,8 @@ export default function AuthGate({ children }) {
   if (!isConfigured) return <Shell withTabs>{children}</Shell>;
   if (loading) {
     return (
-      <Shell>
-        <p className="loading">Loading…</p>
+      <Shell withTabs>
+        <ShellSkeleton />
       </Shell>
     );
   }
@@ -189,8 +212,8 @@ export default function AuthGate({ children }) {
   }
   if (onboarded === null) {
     return (
-      <Shell>
-        <p className="loading">Loading…</p>
+      <Shell withTabs>
+        <ShellSkeleton />
       </Shell>
     );
   }

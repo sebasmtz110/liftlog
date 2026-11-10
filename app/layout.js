@@ -5,6 +5,7 @@ import "./screens.css";
 import { AuthProvider } from "./components/AuthContext";
 import AuthGate from "./components/AuthGate";
 import InstallPrompt from "./components/InstallPrompt";
+import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import ForegroundRefresh from "./components/ForegroundRefresh";
 
 export const metadata = {
@@ -35,6 +36,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <AuthGate>{children}</AuthGate>
           <InstallPrompt />
+          <ServiceWorkerRegister />
           <ForegroundRefresh />
         </AuthProvider>
       </body>
