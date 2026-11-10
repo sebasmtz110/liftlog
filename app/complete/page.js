@@ -4,7 +4,10 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabase, isConfigured } from "../../lib/supabase";
 import ConfigBanner from "../components/ConfigBanner";
+import Spinner from "../components/Spinner";
+import { useAuth } from "../components/AuthContext";
 import { volumeOf } from "../../lib/volume";
+import { loadSplitCached } from "../../lib/dataCache";
 
 function fmtDur(ms) {
   const min = Math.max(1, Math.round(ms / 60000));
@@ -14,7 +17,7 @@ function fmtDur(ms) {
 
 export default function Complete() {
   return (
-    <Suspense fallback={<section className="page"><p className="loading">Loading…</p></section>}>
+    <Suspense fallback={<section className="page"><p className="loading"><Spinner /></p></section>}>
       <CompleteInner />
     </Suspense>
   );
@@ -23,6 +26,7 @@ export default function Complete() {
 function CompleteInner() {
   const router = useRouter();
   const params = useSearchParams();
+  const { user } = useAuth();
   const id = params.get("id");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,9 +42,16 @@ function CompleteInner() {
         setLoading(false);
         return;
       }
-      const [{ data: workout }, { data: sets }] = await Promise.all([
+      // Template name from the cached split when available (no extra
+      // round-trip); the split fetch runs in parallel with the workout
+      // and sets, so a cold visit still waits on one window, not two.
+      const splitP = user
+        ? loadSplitCached(supabase, user.id).catch(() => null)
+        : Promise.resolve(null);
+      const [{ data: workout }, { data: sets }, split] = await Promise.all([
         supabase.from("workouts").select("id, started_at, ended_at, template_id").eq("id", id).single(),
         supabase.from("sets").select("reps, weight, exercise_id").eq("workout_id", id),
+        splitP,
       ]);
       if (!workout) {
         setLoading(false);
@@ -48,8 +59,17 @@ function CompleteInner() {
       }
       let name = "Session";
       if (workout.template_id) {
-        const { data: tpl } = await supabase.from("workout_templates").select("name").eq("id", workout.template_id).single();
-        if (tpl?.name) name = tpl.name;
+        const tpl = split?.days
+          ?.flatMap((d) => (d.template ? [d.template] : []))
+          .find((t) => t.id === workout.template_id);
+        if (tpl?.name) {
+          name = tpl.name;
+        } else {
+          // Template not in the current split (e.g. an old workout) —
+          // one small lookup, as before.
+          const { data: tplRow } = await supabase.from("workout_templates").select("name").eq("id", workout.template_id).single();
+          if (tplRow?.name) name = tplRow.name;
+        }
       }
       const exCount = new Set((sets ?? []).map((x) => x.exercise_id)).size;
       const volume = volumeOf(sets);
@@ -59,12 +79,12 @@ function CompleteInner() {
       setData({ name, exCount, durMs, sets: (sets ?? []).length, volume: Math.round(volume) });
       setLoading(false);
     })();
-  }, [id]);
+  }, [id, user]);
 
   return (
     <section className="page">
       <ConfigBanner />
-      {loading ? <p className="loading">Loading the session…</p> : !data ? (
+      {loading ? <p className="loading"><Spinner /></p> : !data ? (
         <>
           <p className="empty">That session isn't available.</p>
           <button className="btn btn-line" type="button" onClick={() => router.push("/")}>Back to today</button>

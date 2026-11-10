@@ -6,6 +6,9 @@ import { getSupabase, isConfigured } from "../../lib/supabase";
 import { thumbFor } from "../../lib/catalog";
 import { volumeOf } from "../../lib/volume";
 import ConfigBanner from "../components/ConfigBanner";
+import Spinner from "../components/Spinner";
+import { useAuth } from "../components/AuthContext";
+import { loadWorkoutsCached, invalidateWorkouts } from "../../lib/dataCache";
 
 function minutesBetween(a, b) {
   if (!a || !b) return 0;
@@ -15,6 +18,7 @@ function minutesBetween(a, b) {
 function HistoryInner() {
   const router = useRouter();
   const params = useSearchParams();
+  const { user } = useAuth();
   const focus = params.get("id");
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,21 +40,36 @@ function HistoryInner() {
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase
-      .from("workouts")
-      .select("id, started_at, ended_at, template_id, sets(id, set_number, reps, weight, exercise_id, exercises(name, muscle_group))")
-      .not("ended_at", "is", null)
-      .order("started_at", { ascending: false })
-      .limit(40);
-    if (error) setActionError("Couldn't load your sessions. Try again.");
-    else {
-      setActionError("");
-      setWorkouts(data ?? []);
+    // Workouts list from the shared cache (lib/dataCache.js): a warm list
+    // renders at once and refreshes in the background; only a cold visit
+    // waits on the round-trip (and shows the spinner).
+    try {
+      const { rows } = user
+        ? await loadWorkoutsCached(supabase, user.id, (fresh) => setWorkouts(fresh.slice(0, 40)))
+        : { rows: null };
+      if (rows) {
+        setActionError("");
+        setWorkouts(rows.slice(0, 40));
+      } else {
+        const { data, error } = await supabase
+          .from("workouts")
+          .select("id, started_at, ended_at, template_id, sets(id, set_number, reps, weight, exercise_id, exercises(name, muscle_group))")
+          .not("ended_at", "is", null)
+          .order("started_at", { ascending: false })
+          .limit(40);
+        if (error) setActionError("Couldn't load your sessions. Try again.");
+        else {
+          setActionError("");
+          setWorkouts(data ?? []);
+        }
+      }
+    } catch {
+      setActionError("Couldn't load your sessions. Try again.");
     }
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [user]);
 
   const open = useMemo(() => workouts.find((w) => w.id === openId) || null, [workouts, openId]);
 
@@ -85,6 +104,9 @@ function HistoryInner() {
     }
     setSaving(false);
     setEditing(false);
+    // The edited sets change the cached list — drop it so the reload
+    // below fetches fresh rows instead of showing the old weights.
+    invalidateWorkouts(user?.id);
     await load();
   };
 
@@ -108,6 +130,9 @@ function HistoryInner() {
     }
     setOpenId(null);
     router.replace("/history");
+    // The deleted workout is in the cached list — drop it so the reload
+    // below fetches fresh rows instead of showing the deleted session.
+    invalidateWorkouts(user?.id);
     await load();
   };
 
@@ -177,7 +202,7 @@ function HistoryInner() {
       <h1>History</h1>
       <p className="lede">Finished sessions, newest first.</p>
       {actionError ? <p className="err" role="alert">{actionError}</p> : null}
-      {loading ? <p className="loading">Loading…</p> : actionError ? null : workouts.length === 0 ? (
+      {loading ? <p className="loading"><Spinner /></p> : actionError ? null : workouts.length === 0 ? (
         <p className="empty">No finished sessions yet.</p>
       ) : (
         <section className="panel" style={{ marginTop: 16 }}>
@@ -209,7 +234,7 @@ function HistoryInner() {
 
 export default function History() {
   return (
-    <Suspense fallback={<section className="page"><p className="loading">Loading…</p></section>}>
+    <Suspense fallback={<section className="page"><p className="loading"><Spinner /></p></section>}>
       <HistoryInner />
     </Suspense>
   );

@@ -3,16 +3,60 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
-import { loadSplit } from "../../lib/presets";
 import { answerCoach, QUICK } from "../../lib/coach";
 import { volumeOf } from "../../lib/volume";
 import ConfigBanner from "../components/ConfigBanner";
+import Spinner from "../components/Spinner";
+import { loadWorkoutsCached, loadSplitCached } from "../../lib/dataCache";
 
 function mondayOf(d) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
   return x;
+}
+
+/** Coach context from the three pieces it reads: split (today's day),
+ *  profile (weekly goal) and the workouts list (week volume, streak, PRs). */
+function buildCtx(split, profile, workouts) {
+  const weekStart = mondayOf(new Date());
+  const week = (workouts ?? []).filter((w) => new Date(w.started_at) >= weekStart);
+  const wsets = week.flatMap((w) => w.sets ?? []);
+  const ti = (new Date().getDay() + 6) % 7;
+  const today = split?.days?.find((d) => d.day_index === ti);
+  const muscleSets = {};
+  for (const s of wsets) {
+    const m = s.exercises?.muscle_group || "Other";
+    muscleSets[m] = (muscleSets[m] || 0) + 1;
+  }
+  const best = new Map();
+  for (const w of workouts ?? []) {
+    for (const s of w.sets ?? []) {
+      const n = s.exercises?.name;
+      if (n && Number(s.weight) > 0 && (!best.has(n) || Number(s.weight) > best.get(n))) {
+        best.set(n, Number(s.weight));
+      }
+    }
+  }
+  const daySet = new Set((workouts ?? []).map((w) => new Date(w.started_at).toDateString()));
+  let streak = 0;
+  const cursor = new Date();
+  if (!daySet.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
+  while (daySet.has(cursor.toDateString())) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return {
+    todayLabel: today && !today.is_rest ? today.label : null,
+    isRest: !today || today.is_rest,
+    weekWorkouts: week.length,
+    weekVolume: volumeOf(wsets),
+    weekSets: wsets.length,
+    goal: profile?.weekly_goal ?? 4,
+    streak,
+    prs: [...best.entries()].map(([name, weight]) => ({ name, weight })),
+    muscleSets,
+  };
 }
 
 export default function Coach() {
@@ -29,62 +73,37 @@ export default function Coach() {
       setLoading(false);
       return;
     }
+    let cancelled = false;
+    // Keep the pieces so a background refresh can rebuild the context.
+    const parts = { split: null, profile: null, workouts: [] };
+    const refresh = () => { if (!cancelled) setCtx(buildCtx(parts.split, parts.profile, parts.workouts)); };
     (async () => {
       const supabase = await getSupabase();
       if (!supabase) {
         setLoading(false);
         return;
       }
-      const [split, { data: profile }, { data: workouts }] = await Promise.all([
-        loadSplit(supabase, user.id),
+      // Workouts + split from the shared cache (lib/dataCache.js): a warm
+      // visit renders at once; only the single-row profile still
+      // round-trips. A stale cache refreshes in the background and
+      // rebuilds the context. A failed split/workouts read no longer
+      // leaves the page stuck on the spinner — it renders with an empty log.
+      const [split, { data: profile }, { rows: workouts }] = await Promise.all([
+        loadSplitCached(supabase, user.id, (fresh) => { parts.split = fresh; refresh(); })
+          .catch(() => null),
         supabase.from("profiles").select("weekly_goal").eq("id", user.id).maybeSingle(),
-        supabase
-          .from("workouts")
-          .select("id, started_at, sets(id, reps, weight, exercises(name, muscle_group))")
-          .not("ended_at", "is", null)
-          .order("started_at", { ascending: false })
-          .limit(60),
+        loadWorkoutsCached(supabase, user.id, (fresh) => { parts.workouts = fresh.slice(0, 60); refresh(); })
+          .then(({ rows }) => ({ rows }))
+          .catch(() => ({ rows: [] })),
       ]);
-      const weekStart = mondayOf(new Date());
-      const week = (workouts ?? []).filter((w) => new Date(w.started_at) >= weekStart);
-      const wsets = week.flatMap((w) => w.sets ?? []);
-      const ti = (new Date().getDay() + 6) % 7;
-      const today = split?.days?.find((d) => d.day_index === ti);
-      const muscleSets = {};
-      for (const s of wsets) {
-        const m = s.exercises?.muscle_group || "Other";
-        muscleSets[m] = (muscleSets[m] || 0) + 1;
-      }
-      const best = new Map();
-      for (const w of workouts ?? []) {
-        for (const s of w.sets ?? []) {
-          const n = s.exercises?.name;
-          if (n && Number(s.weight) > 0 && (!best.has(n) || Number(s.weight) > best.get(n))) {
-            best.set(n, Number(s.weight));
-          }
-        }
-      }
-      const daySet = new Set((workouts ?? []).map((w) => new Date(w.started_at).toDateString()));
-      let streak = 0;
-      const cursor = new Date();
-      if (!daySet.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
-      while (daySet.has(cursor.toDateString())) {
-        streak++;
-        cursor.setDate(cursor.getDate() - 1);
-      }
-      setCtx({
-        todayLabel: today && !today.is_rest ? today.label : null,
-        isRest: !today || today.is_rest,
-        weekWorkouts: week.length,
-        weekVolume: volumeOf(wsets),
-        weekSets: wsets.length,
-        goal: profile?.weekly_goal ?? 4,
-        streak,
-        prs: [...best.entries()].map(([name, weight]) => ({ name, weight })),
-        muscleSets,
-      });
+      if (cancelled) return;
+      parts.split = split;
+      parts.profile = profile ?? null;
+      parts.workouts = (workouts ?? []).slice(0, 60);
+      setCtx(buildCtx(parts.split, parts.profile, parts.workouts));
       setLoading(false);
     })();
+    return () => { cancelled = true; };
   }, [user]);
 
   function ask(text) {
@@ -105,7 +124,7 @@ export default function Coach() {
       <ConfigBanner />
       <h1>Coach</h1>
       <p className="lede">Answers come from this week&apos;s log. Nothing is sent to a model.</p>
-      {loading ? <p className="loading">Loading the log…</p> : (
+      {loading ? <p className="loading"><Spinner /></p> : (
         <>
           <div className="chat" style={{ marginTop: 16 }}>
             {messages.map((m, i) => (

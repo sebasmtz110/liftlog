@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../../lib/supabase";
+import { clearDataCache } from "../../lib/dataCache";
 
 const AuthCtx = createContext({ user: null, loading: true, signOut: async () => {} });
 
@@ -61,6 +62,9 @@ export function AuthProvider({ children }) {
     try {
       localStorage.removeItem(ACTIVE_WORKOUT_KEY);
     } catch {}
+    // Drop the cached lists too, so a new sign-in never sees the
+    // previous user's workouts, split, or health rows.
+    clearDataCache();
     const supabase = await getSupabase();
     if (supabase) await supabase.auth.signOut();
   }

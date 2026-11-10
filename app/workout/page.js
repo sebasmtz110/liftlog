@@ -4,13 +4,15 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
-import { loadSplit, applySplit, buildSplit, PRESETS, PRESET_ORDER, DAY_NAMES } from "../../lib/presets";
+import { applySplit, buildSplit, PRESETS, PRESET_ORDER, DAY_NAMES } from "../../lib/presets";
 import { ensureCatalog, FILTERS, thumbFor } from "../../lib/catalog";
 import { BUILTIN_ROUTINES, resolveNames, routineLabel } from "../../lib/routines";
 import { loadDayPlans, saveDayPlan } from "../../lib/dayPlans";
 import { startSession } from "../../lib/startSession";
 import { volumeOf } from "../../lib/volume";
 import ConfigBanner from "../components/ConfigBanner";
+import Spinner from "../components/Spinner";
+import { loadWorkoutsCached, loadSplitCached, invalidateSplit } from "../../lib/dataCache";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -34,7 +36,7 @@ function setLine(name, sets) {
 
 export default function Workout() {
   return (
-    <Suspense fallback={<section className="page"><p className="loading">Loading…</p></section>}>
+    <Suspense fallback={<section className="page"><p className="loading"><Spinner /></p></section>}>
       <WorkoutInner />
     </Suspense>
   );
@@ -76,25 +78,29 @@ function WorkoutInner() {
       setLoading(false);
       return;
     }
-    const [s, rows, sessionsResult] = await Promise.all([
-      loadSplit(supabase, user.id),
+    // Split + workouts list from the shared cache (lib/dataCache.js): a
+    // warm visit renders at once and refreshes in the background; only a
+    // cold visit waits on the round-trips (and shows the spinner).
+    // Catalog is already cached per page load by ensureCatalog.
+    // (Callers invalidate the split before refresh() after a mutation;
+    // the mount effect must NOT invalidate.)
+    let sessionsErr = null;
+    const [s, rows, sessions] = await Promise.all([
+      loadSplitCached(supabase, user.id, (fresh) => setSplit(fresh)).catch(() => null),
       ensureCatalog(supabase),
-      supabase
-        .from("workouts")
-        .select("id, started_at, ended_at, sets(reps, weight, exercises(id, name))")
-        .not("ended_at", "is", null)
-        .order("started_at", { ascending: false })
-        .limit(80),
+      loadWorkoutsCached(supabase, user.id, (fresh) => setWorkouts(fresh.slice(0, 80)))
+        .then(({ rows }) => rows)
+        .catch((err) => { sessionsErr = err; return []; }),
     ]);
     setSplit(s);
     const map = {};
     for (const row of rows || []) map[row.name.toLowerCase()] = row.id;
     setIdByName(map);
     setCatalog(rows || []);
-    if (sessionsResult.error) setLoadError("Couldn't load your sessions. Try again.");
+    if (sessionsErr) setLoadError("Couldn't load your sessions. Try again.");
     else {
       setLoadError("");
-      setWorkouts(sessionsResult.data ?? []);
+      setWorkouts((sessions ?? []).slice(0, 80));
     }
     setPlans(loadDayPlans(user.id));
     setLoading(false);
@@ -241,6 +247,9 @@ function WorkoutInner() {
     }
     setSaving(false);
     setEditing(false);
+    // The edited days change the cached split — drop it so refresh()
+    // fetches fresh rows instead of showing the old labels.
+    invalidateSplit(user?.id);
     refresh();
   }
 
@@ -254,6 +263,9 @@ function WorkoutInner() {
       await applySplit(supabase, user.id, built);
       setEditing(false);
       setSwitching(false);
+      // The new preset replaces the cached split — drop it so refresh()
+      // fetches fresh rows instead of showing the old split.
+      invalidateSplit(user?.id);
       refresh();
     } catch {
       setActionError("That didn't save. Try again.");
@@ -311,6 +323,9 @@ function WorkoutInner() {
       if (error) {
         setSaving(false);
         setActionError("That didn't save. Try again.");
+        // A partial write may already have landed — drop the cached split
+        // so refresh() fetches fresh rows instead of showing stale ones.
+        invalidateSplit(user?.id);
         refresh();
         return;
       }
@@ -320,12 +335,16 @@ function WorkoutInner() {
       if (error) {
         setSaving(false);
         setActionError("That didn't save. Try again.");
+        invalidateSplit(user?.id);
         refresh();
         return;
       }
     }
     setSaving(false);
     setEditor(null);
+    // The renamed / re-built template changes the cached split — drop it
+    // so refresh() fetches fresh rows instead of showing the old template.
+    invalidateSplit(user?.id);
     refresh();
   }
 
@@ -337,7 +356,7 @@ function WorkoutInner() {
   });
 
   if (loading || !now) {
-    return <section className="page"><ConfigBanner /><p className="loading">Loading…</p></section>;
+    return <section className="page"><ConfigBanner /><p className="loading"><Spinner /></p></section>;
   }
 
   if (!split) {

@@ -8,6 +8,7 @@ import { EXERCISES, FILTERS, catalogById, ensureCatalog, matchesFilter } from ".
 import { loadDayPlans, saveDayPlan } from "../../lib/dayPlans";
 import { useAuth } from "../components/AuthContext";
 import ConfigBanner from "../components/ConfigBanner";
+import Spinner from "../components/Spinner";
 import Icon from "../components/Icon";
 
 const TABS = ["Instructions", "Tips", "Sets & Reps"];
@@ -76,7 +77,7 @@ function muscleMarkup(ex) {
 
 export default function Exercises() {
   return (
-    <Suspense fallback={<section className="page"><p className="loading">Loading…</p></section>}>
+    <Suspense fallback={<section className="page"><p className="loading"><Spinner /></p></section>}>
       <ExercisesInner />
     </Suspense>
   );
