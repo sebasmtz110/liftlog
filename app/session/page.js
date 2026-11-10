@@ -3,12 +3,15 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY, TEMPLATE_EXERCISES_KEY, loadWorkoutSnapshot, saveWorkoutSnapshot, clearWorkoutSnapshot } from "../../lib/supabase";
-import { catalogByName, FILTERS } from "../../lib/catalog";
+import { catalogByName, ensureCatalog, FILTERS } from "../../lib/catalog";
 import { visualForExercise, plateForExercise } from "../../lib/exerciseVisuals";
 import ConfigBanner from "../components/ConfigBanner";
+import Spinner from "../components/Spinner";
+import { useAuth } from "../components/AuthContext";
 import { volumeOf } from "../../lib/volume";
 import Icon from "../components/Icon";
 import Plates from "../components/Plates";
+import { loadWorkoutsCached, invalidateWorkouts } from "../../lib/dataCache";
 
 const REST_DEFAULT = 90;
 const RING_C = 326.73;
@@ -263,6 +266,7 @@ const OrderSheet = memo(function OrderSheet({ rows, onClose, onPick, onReorder }
 
 export default function Session() {
   const router = useRouter();
+  const { user } = useAuth();
   const [workoutId, setWorkoutId] = useState(null);
   const [startedAt, setStartedAt] = useState(null);
   const [catalog, setCatalog] = useState([]);
@@ -310,9 +314,13 @@ export default function Session() {
         setLoading(false);
         return;
       }
-      const [{ data: workout }, { data: exercises }] = await Promise.all([
+      // Workout row + catalog in parallel; the catalog is the shared
+      // module-level cache (ensureCatalog) instead of a second full
+      // exercises query, so opening a session reuses the catalog the
+      // tabs already fetched. Sorted by name to keep the picker order.
+      const [{ data: workout }, exercises] = await Promise.all([
         supabase.from("workouts").select("id, started_at, ended_at").eq("id", id).single(),
-        supabase.from("exercises").select("id, name, muscle_group").order("name"),
+        ensureCatalog(supabase),
       ]);
       if (!workout || workout.ended_at) {
         localStorage.removeItem(ACTIVE_WORKOUT_KEY);
@@ -321,7 +329,7 @@ export default function Session() {
         return;
       }
       setStartedAt(workout.started_at);
-      if (exercises) setCatalog(exercises);
+      if (exercises) setCatalog([...exercises].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
       let seeded = [];
       try {
         const raw = localStorage.getItem(TEMPLATE_EXERCISES_KEY);
@@ -374,19 +382,20 @@ export default function Session() {
   }, []);
 
   useEffect(() => {
-    if (!isConfigured) return;
+    if (!isConfigured || !user) return;
+    // "Previous" weights for the focused exercise, from the shared
+    // workouts cache (lib/dataCache.js) instead of a second list query.
     (async () => {
       const supabase = await getSupabase();
       if (!supabase) return;
-      const { data } = await supabase
-        .from("workouts")
-        .select("started_at, ended_at, sets(exercise_id, reps, weight)")
-        .not("ended_at", "is", null)
-        .order("started_at", { ascending: false })
-        .limit(40);
-      if (data) setHistory(data);
+      try {
+        const { rows } = await loadWorkoutsCached(supabase, user.id);
+        setHistory(rows.slice(0, 40));
+      } catch {
+        /* keep history empty — the session still works without it */
+      }
     })();
-  }, []);
+  }, [user]);
 
   // Mirror the exercise order for use inside pointer handlers.
   useEffect(() => {
@@ -641,6 +650,9 @@ export default function Session() {
     }
     localStorage.removeItem(ACTIVE_WORKOUT_KEY);
     clearWorkoutSnapshot(workoutId);
+    // The finished workout now belongs in the cached list — drop it so
+    // the next tab visit re-fetches and shows the completed session.
+    invalidateWorkouts(user?.id);
     router.push(`/complete?id=${workoutId}`);
   }
 
@@ -667,6 +679,8 @@ export default function Session() {
     }
     localStorage.removeItem(ACTIVE_WORKOUT_KEY);
     clearWorkoutSnapshot(workoutId);
+    // A deleted workout must not linger in the cached list.
+    invalidateWorkouts(user?.id);
     router.push("/");
   }
 
@@ -688,7 +702,7 @@ export default function Session() {
   }, []);
 
   if (loading) {
-    return <section className="page"><p className="loading">Loading the session…</p></section>;
+    return <section className="page"><p className="loading"><Spinner /></p></section>;
   }
 
   if (!workoutId) {

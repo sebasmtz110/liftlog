@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getSupabase } from "../../lib/supabase";
 import { PRESETS, PRESET_ORDER, DAY_NAMES, buildSplit, recommendPreset, applySplit } from "../../lib/presets";
+import { invalidateSplit } from "../../lib/dataCache";
 
 const EXPERIENCE = [
   { id: "beginner", label: "Just starting", hint: "Less than a year of lifting" },
@@ -54,6 +55,9 @@ export default function Quiz({ userId, onDone }) {
       const supabase = await getSupabase();
       if (!supabase) throw new Error("no-client");
       await applySplit(supabase, userId, built);
+      // The new split replaces any cached one — drop it so the app
+      // fetches fresh rows instead of showing the old split.
+      invalidateSplit(userId);
       const { error } = await supabase.from("profiles").upsert({
         id: userId,
         display_name: name.trim() || null,

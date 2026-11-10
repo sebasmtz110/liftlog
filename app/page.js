@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../lib/supabase";
-import { loadSplit } from "../lib/presets";
 import { EXERCISES, ensureCatalog } from "../lib/catalog";
+import { readCached, isFresh, fetchShared, fetchWorkoutsList, loadSplitCached, workoutsKey } from "../lib/dataCache";
 import { volumeOf } from "../lib/volume";
 import { BUILTIN_ROUTINES, resolveNames, routineLabel } from "../lib/routines";
 import { loadDayPlans, saveDayPlan } from "../lib/dayPlans";
@@ -55,29 +55,54 @@ export default function Home() {
     (async () => {
       const supabase = await getSupabase();
       if (!supabase || cancelled) return;
-      // All four reads are independent — fire them together instead of one
-      // after another, so first paint waits on one round-trip window, not four.
-      const [rows, workoutsRes, splitRes, profRes] = await Promise.all([
-        ensureCatalog(supabase),
-        supabase
-          .from("workouts")
-          .select("id, started_at, ended_at, sets(reps, weight, exercises(id, name))")
-          .order("started_at", { ascending: false })
-          .limit(80),
-        user ? loadSplit(supabase, user.id) : Promise.resolve(null),
-        user
-          ? supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
-          : Promise.resolve({ data: null }),
-      ]);
+      // Workouts list: the shared cache (lib/dataCache.js) renders a warm
+      // list at once instead of waiting on the round-trip. Catalog, split
+      // and profile still fire in parallel with it; the split is cached
+      // the same way, so on a warm visit only the profile re-fetches.
+      const wkey = user ? workoutsKey(user.id) : null;
+      const cached = wkey ? readCached(wkey) : null;
+      const splitP = user
+        ? loadSplitCached(supabase, user.id, (fresh) => { if (!cancelled) setSplit(fresh); })
+        : Promise.resolve(null);
+      const profP = user
+        ? supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+        : Promise.resolve({ data: null });
+      const catP = ensureCatalog(supabase);
+      let workoutsRes = null;
+      if (cached) {
+        setLoadError("");
+        setWorkouts(cached.slice(0, 80));
+        // Stale list renders now; refresh it quietly in the background.
+        if (wkey && !isFresh(wkey)) {
+          fetchShared(wkey, () => fetchWorkoutsList(supabase))
+            .then((fresh) => {
+              if (!cancelled && readCached(wkey) === fresh) setWorkouts(fresh.slice(0, 80));
+            })
+            .catch(() => {});
+        }
+      } else {
+        workoutsRes = await (wkey
+          ? fetchShared(wkey, () => fetchWorkoutsList(supabase))
+              .then((rows) => ({ data: rows, error: null }))
+              .catch((err) => ({ data: null, error: err }))
+          : supabase
+              .from("workouts")
+              .select("id, started_at, ended_at, sets(reps, weight, exercises(id, name))")
+              .order("started_at", { ascending: false })
+              .limit(80));
+      }
+      const [rows, splitRes, profRes] = await Promise.all([catP, splitP, profP]);
       if (cancelled) return;
       const map = {};
       for (const row of rows || []) map[row.name.toLowerCase()] = row.id;
       setIdByName(map);
-      const { data, error } = workoutsRes;
-      if (error) setLoadError("Couldn't load your sessions. Try again.");
-      else {
-        setLoadError("");
-        setWorkouts((data ?? []).filter((w) => w.ended_at));
+      if (workoutsRes) {
+        const { data, error } = workoutsRes;
+        if (error) setLoadError("Couldn't load your sessions. Try again.");
+        else {
+          setLoadError("");
+          setWorkouts((data ?? []).filter((w) => w.ended_at).slice(0, 80));
+        }
       }
       if (splitRes) setSplit(splitRes);
       if (profRes?.data?.display_name) setName(profRes.data.display_name);

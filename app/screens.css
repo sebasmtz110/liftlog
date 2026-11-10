@@ -38,6 +38,11 @@
   display: block;
   font-size: 16px;
   font-weight: 500;
+}
+/* The shadow belongs to the white tile names sitting on photos only.
+   The destination cards (Routines, History, Exercises, Last session)
+   are dark text on light cards — the shadow made them look heavy/blurry. */
+.tile .name {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55), 0 0 2px rgba(0, 0, 0, 0.35);
 }
 .tile .sets, .dest .sets { display: block; margin-top: 2px; color: #b7b2aa; font-size: 13px; }

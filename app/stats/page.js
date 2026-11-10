@@ -6,7 +6,9 @@ import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
 import { listPhotos, addPhoto, deletePhoto, shrinkPhoto } from "../../lib/photos";
 import ConfigBanner from "../components/ConfigBanner";
+import Spinner from "../components/Spinner";
 import { volumeOf } from "../../lib/volume";
+import { loadWorkoutsCached } from "../../lib/dataCache";
 
 const RANGES = [
   { id: "week", label: "Week", days: 7 },
@@ -82,26 +84,47 @@ export default function Stats() {
       setLoading(false);
       return;
     }
+    let cancelled = false;
     (async () => {
       const supabase = await getSupabase();
       if (!supabase) {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase
-        .from("workouts")
-        .select("id, started_at, sets(id, reps, weight, exercises(name, muscle_group))")
-        .not("ended_at", "is", null)
-        .order("started_at", { ascending: false })
-        .limit(200);
-      if (error) setActionError("Couldn't load your sessions. Try again.");
-      else {
-        setActionError("");
-        setWorkouts(data ?? []);
+      // Workouts list from the shared cache (lib/dataCache.js): a warm
+      // list renders at once and refreshes in the background; only a
+      // cold visit waits on the round-trip (and shows the spinner).
+      // Range changes re-filter this already-loaded list client-side,
+      // so they were already instant.
+      try {
+        const { rows } = user
+          ? await loadWorkoutsCached(supabase, user.id, (fresh) => { if (!cancelled) setWorkouts(fresh); })
+          : { rows: null };
+        if (cancelled) return;
+        if (rows) {
+          setActionError("");
+          setWorkouts(rows);
+        } else {
+          const { data, error } = await supabase
+            .from("workouts")
+            .select("id, started_at, sets(id, reps, weight, exercises(name, muscle_group))")
+            .not("ended_at", "is", null)
+            .order("started_at", { ascending: false })
+            .limit(200);
+          if (error) setActionError("Couldn't load your sessions. Try again.");
+          else {
+            setActionError("");
+            setWorkouts(data ?? []);
+          }
+        }
+      } catch {
+        if (!cancelled) setActionError("Couldn't load your sessions. Try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [user]);
 
   async function saveWeight() {
     const v = Number(bwSheet?.value);
@@ -269,7 +292,7 @@ export default function Stats() {
       </div>
       {actionError ? <p className="err" role="alert">{actionError}</p> : null}
 
-      {loading || !model ? <p className="loading">Loading…</p> : actionError ? null : (
+      {loading || !model ? <p className="loading"><Spinner /></p> : actionError ? null : (
         <div className="stack" style={{ marginTop: "var(--gap)" }}>
           <section className="panel">
             <div className="stat-tiles">

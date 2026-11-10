@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { getSupabase, isConfigured } from "../../lib/supabase";
 import { useAuth } from "../components/AuthContext";
 import ConfigBanner from "../components/ConfigBanner";
+import Spinner from "../components/Spinner";
+import { loadHealthCached, fetchHealthRows } from "../../lib/dataCache";
 
 const SEBAS_EMAIL = "sebasmtz110@gmail.com";
 
@@ -56,13 +58,25 @@ export default function Health() {
   useEffect(() => {
     if (user && user.email !== SEBAS_EMAIL) { router.replace("/"); return; }
     if (!isConfigured) { setLoading(false); return; }
+    let cancelled = false;
     (async () => {
       const supabase = await getSupabase();
       if (!supabase) { setLoading(false); return; }
-      const { data } = await supabase.from("health_data").select("*").order("date", { ascending: false }).limit(14);
-      setRows(data ?? []);
-      setLoading(false);
+      // Health rows from the shared cache (lib/dataCache.js): a warm visit
+      // renders at once; the bridge only writes every 3h, so a 60s TTL is
+      // far inside the data's own freshness.
+      try {
+        const rows = user
+          ? await loadHealthCached(supabase, user.id, (fresh) => { if (!cancelled) setRows(fresh); })
+          : await fetchHealthRows(supabase);
+        if (!cancelled) setRows(rows ?? []);
+      } catch {
+        if (!cancelled) setRows([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
+    return () => { cancelled = true; };
   }, [user, router]);
 
   if (user && user.email !== SEBAS_EMAIL) return null;
@@ -88,7 +102,7 @@ export default function Health() {
       <ConfigBanner />
       <h1>Health</h1>
       <p className="lede">{when ? `Latest entry ${when}.` : "No health rows yet."}</p>
-      {loading ? <p className="loading">Loading…</p> : !today ? (
+      {loading ? <p className="loading"><Spinner /></p> : !today ? (
         <p className="empty">Sleep, resting heart rate, and HRV show up here when a row exists.</p>
       ) : (
         <>
