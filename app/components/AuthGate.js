@@ -37,6 +37,28 @@ function Shell({ children, withTabs }) {
     document.body.classList.toggle("is-immersive", immersive);
   }, [immersive]);
 
+  // Keep the app shell sized to the real viewport: iOS Safari's visual
+  // viewport changes as toolbars collapse and the keyboard opens, and
+  // 100dvh alone does not track it. The shell height comes from --app-h.
+  useEffect(() => {
+    const update = () => {
+      const vv = window.visualViewport;
+      const h = vv && vv.scale <= 1.01 ? vv.height : window.innerHeight;
+      document.documentElement.style.setProperty("--app-h", `${Math.round(h)}px`);
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    window.addEventListener("pageshow", update);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      window.removeEventListener("pageshow", update);
+      if (window.visualViewport) window.visualViewport.removeEventListener("resize", update);
+    };
+  }, []);
+
   return (
     <div className={withTabs && !immersive ? "app has-topbar" : "app"}>
       {withTabs && !immersive && <Sidebar />}

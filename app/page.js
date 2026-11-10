@@ -114,7 +114,17 @@ export default function Home() {
         templateId: tpl.id,
       });
     }
-    return [...builtins, ...saved];
+    // The chip row shows one button per routine label: built-ins and saved
+    // split templates can share a label (e.g. "Pull", "Legs"), so dedupe
+    // by label instead of showing the same chip twice.
+    const all = [...builtins, ...saved];
+    const seen = new Set();
+    return all.filter((r) => {
+      const label = routineLabel(r);
+      if (seen.has(label)) return false;
+      seen.add(label);
+      return true;
+    });
   }, [idByName, split]);
 
   const todayDay = split?.days?.find((d) => d.day_index === todayIdx) || null;
