@@ -26,6 +26,13 @@
   -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent 98%);
   mask-image: linear-gradient(to bottom, #000 58%, transparent 98%);
 }
+/* Library tile framing: on the small (outer) screen the narrow tile crops
+   the sides, so shift the photo left (30%) to center his head. On the big
+   (inner) screen the full photo shows, so keep the default center. */
+.tile-library img { object-position: 30% 50%; }
+@media (min-width: 600px) {
+  .tile-library img { object-position: 50% 50%; }
+}
 .tile-copy {
   position: absolute;
   left: 0;
