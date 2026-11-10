@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../lib/supabase";
 import { loadSplit } from "../lib/presets";
 import { EXERCISES, ensureCatalog } from "../lib/catalog";
@@ -54,28 +55,32 @@ export default function Home() {
     (async () => {
       const supabase = await getSupabase();
       if (!supabase || cancelled) return;
-      const rows = await ensureCatalog(supabase);
+      // All four reads are independent — fire them together instead of one
+      // after another, so first paint waits on one round-trip window, not four.
+      const [rows, workoutsRes, splitRes, profRes] = await Promise.all([
+        ensureCatalog(supabase),
+        supabase
+          .from("workouts")
+          .select("id, started_at, ended_at, sets(reps, weight, exercises(id, name))")
+          .order("started_at", { ascending: false })
+          .limit(80),
+        user ? loadSplit(supabase, user.id) : Promise.resolve(null),
+        user
+          ? supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
       if (cancelled) return;
       const map = {};
       for (const row of rows || []) map[row.name.toLowerCase()] = row.id;
       setIdByName(map);
-      const { data, error } = await supabase
-        .from("workouts")
-        .select("id, started_at, ended_at, sets(reps, weight, exercises(id, name))")
-        .order("started_at", { ascending: false })
-        .limit(80);
-      if (cancelled) return;
+      const { data, error } = workoutsRes;
       if (error) setLoadError("Couldn't load your sessions. Try again.");
       else {
         setLoadError("");
         setWorkouts((data ?? []).filter((w) => w.ended_at));
       }
-      if (user) {
-        setSplit(await loadSplit(supabase, user.id));
-        if (cancelled) return;
-        const { data: prof } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
-        if (!cancelled && prof?.display_name) setName(prof.display_name);
-      }
+      if (splitRes) setSplit(splitRes);
+      if (profRes?.data?.display_name) setName(profRes.data.display_name);
     })();
     return () => { cancelled = true; };
   }, [user, reloadKey]);
@@ -216,15 +221,15 @@ export default function Home() {
       {loadError ? <button className="text-btn" type="button" onClick={() => setReloadKey((n) => n + 1)}>Try again</button> : null}
       <div className="tiles">
         <button type="button" className="tile" onClick={() => router.push("/workout?tab=routines")}>
-          <img src="/photos/split-bells.jpg" alt="" />
+          <Image src="/photos/split-bells.jpg" alt="" width={1280} height={856} sizes="(max-width: 960px) 50vw, 400px" />
           <span className="tile-copy"><span className="name">Split</span><span className="sets">{splitLine}</span></span>
         </button>
         <button type="button" className="tile" onClick={() => router.push("/exercises")}>
-          <img src="/photos/library-you.jpg" alt="" style={{ objectPosition: "center 39%" }} />
+          <Image src="/photos/library-you.jpg" alt="" width={472} height={841} sizes="(max-width: 960px) 50vw, 400px" style={{ objectPosition: "center 39%" }} />
           <span className="tile-copy"><span className="name">Library</span><span className="sets">{EXERCISES.length} exercises</span></span>
         </button>
         <button type="button" className="tile" onClick={() => router.push("/stats")}>
-          <img src="/photos/progress-pullup.jpg" alt="" style={{ objectPosition: "center 22%" }} />
+          <Image src="/photos/progress-pullup.jpg" alt="" width={1280} height={853} sizes="(max-width: 960px) 100vw, 800px" style={{ objectPosition: "center 22%" }} />
           <span className="tile-copy"><span className="name">Progress</span><span className="sets">{loadError ? "" : `${weekVolume.toLocaleString()} lb this week`}</span></span>
         </button>
       </div>
