@@ -68,7 +68,7 @@
 }
 .library-keep .skip:focus { top: 12px; }
 
-.library-keep .app { display: flex; flex-direction: column; height: var(--app-h, 100dvh); overflow: hidden; }
+.library-keep .app { display: flex; flex-direction: column; height: var(--app-h, 100dvh); min-height: 240px; overflow: hidden; }
 .library-keep .app:not(.has-topbar) { overflow-y: auto; }
 .library-keep .sidebar { display: none; }
 .library-keep .stage { flex: 1; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; }

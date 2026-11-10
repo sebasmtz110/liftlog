@@ -40,22 +40,43 @@ function Shell({ children, withTabs }) {
   // Keep the app shell sized to the real viewport: iOS Safari's visual
   // viewport changes as toolbars collapse and the keyboard opens, and
   // 100dvh alone does not track it. The shell height comes from --app-h.
+  //
+  // Fold/unfold guard: mid-transition the visual viewport briefly reports
+  // tiny or stale heights, and writing one collapses the whole shell to a
+  // blank screen that stays stuck until the next resize. So implausibly
+  // small readings are ignored, and every resize is re-measured once the
+  // viewport has settled.
   useEffect(() => {
+    const MIN_H = 240;
+    let settleTimer = null;
     const update = () => {
       const vv = window.visualViewport;
       const h = vv && vv.scale <= 1.01 ? vv.height : window.innerHeight;
-      document.documentElement.style.setProperty("--app-h", `${Math.round(h)}px`);
+      if (h >= MIN_H) {
+        document.documentElement.style.setProperty("--app-h", `${Math.round(h)}px`);
+      }
+    };
+    const settle = () => {
+      update();
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(update, 350);
+    };
+    const onVisible = () => {
+      if (!document.hidden) settle();
     };
     update();
-    window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", update);
-    window.addEventListener("pageshow", update);
-    if (window.visualViewport) window.visualViewport.addEventListener("resize", update);
+    window.addEventListener("resize", settle);
+    window.addEventListener("orientationchange", settle);
+    window.addEventListener("pageshow", settle);
+    document.addEventListener("visibilitychange", onVisible);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", settle);
     return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
-      window.removeEventListener("pageshow", update);
-      if (window.visualViewport) window.visualViewport.removeEventListener("resize", update);
+      clearTimeout(settleTimer);
+      window.removeEventListener("resize", settle);
+      window.removeEventListener("orientationchange", settle);
+      window.removeEventListener("pageshow", settle);
+      document.removeEventListener("visibilitychange", onVisible);
+      if (window.visualViewport) window.visualViewport.removeEventListener("resize", settle);
     };
   }, []);
 
