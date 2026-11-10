@@ -63,7 +63,7 @@ a { color: inherit; }
 ::selection { background: #ead7d3; color: #141414; }
 body[data-tone="workout"] ::selection { background: #3a2a27; color: #f4f2ee; }
 
-.app { display: flex; flex-direction: column; height: var(--app-h, 100dvh); overflow: hidden; }
+.app { display: flex; flex-direction: column; height: var(--app-h, 100dvh); min-height: 240px; overflow: hidden; }
 .app:not(.has-topbar) { overflow-y: auto; }
 .stage { flex: 1; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; }
 
