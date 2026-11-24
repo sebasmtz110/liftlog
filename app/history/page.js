@@ -136,6 +136,29 @@ function HistoryInner() {
     await load();
   };
 
+  const deleteSet = async (setId) => {
+    if (!confirm("Delete this set?")) return;
+    setActionError("");
+    const supabase = await getSupabase();
+    if (!supabase) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    const { error } = await supabase.from("sets").delete().eq("id", setId);
+    if (error) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    setEditSets((m) => {
+      const next = { ...m };
+      delete next[setId];
+      return next;
+    });
+    // Drop the cached list so the reload below shows the set gone.
+    invalidateWorkouts(user?.id);
+    await load();
+  };
+
 
 
   if (open) {
@@ -175,12 +198,13 @@ function HistoryInner() {
               <span className="note">{g.muscle}</span>
             </div>
             {g.sets.map((s, idx) => editing ? (
-              <div key={s.id} className="lift">
+              <div key={s.id} className="lift" style={{ gridTemplateColumns: "minmax(0, 1fr) auto auto auto auto auto" }}>
                 <span className="scheme">Set {idx + 1}</span>
                 <input className="input" style={{ width: 90 }} type="number" aria-label={`Weight for set ${idx + 1}`} value={editSets[s.id]?.weight ?? ""} onChange={(e) => setEditSets((m) => ({ ...m, [s.id]: { ...m[s.id], weight: e.target.value } }))} />
                 <span className="note">lb</span>
                 <input className="input" style={{ width: 80 }} type="number" aria-label={`Reps for set ${idx + 1}`} value={editSets[s.id]?.reps ?? ""} onChange={(e) => setEditSets((m) => ({ ...m, [s.id]: { ...m[s.id], reps: e.target.value } }))} />
                 <span className="note">reps</span>
+                <button className="btn btn-bad" type="button" onClick={() => deleteSet(s.id)}>Delete</button>
               </div>
             ) : (
               <div key={s.id} className="lift">

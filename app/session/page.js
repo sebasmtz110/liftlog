@@ -40,16 +40,16 @@ const ElapsedClock = memo(function ElapsedClock({ startedAt }) {
   return <>{clock(elapsed)} in</>;
 });
 
-const LoggedPanel = memo(function LoggedPanel({ sets, volume }) {
+const LoggedPanel = memo(function LoggedPanel({ sets, volume, onEdit }) {
   if (!sets.length) return null;
   return (
     <section className="panel" style={{ marginTop: 14 }}>
       <div className="panel-head"><h2>Logged</h2><span className="note num">{Math.round(volume).toLocaleString()} lb</span></div>
       {sets.map((s) => (
-        <div key={s.id} className="lift">
+        <button key={s.id} type="button" className="lift" onClick={() => onEdit(s)} aria-label={`Edit set ${s.set_number}`}>
           <span className="lift-copy"><strong>Set {s.set_number}</strong></span>
           <span className="scheme num">{s.weight} lb × {s.reps}</span>
-        </div>
+        </button>
       ))}
     </section>
   );
@@ -286,6 +286,8 @@ export default function Session() {
   const [restDur, setRestDur] = useState(REST_DEFAULT);
   const [showRest, setShowRest] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const [editSet, setEditSet] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
   const [motionOpen, setMotionOpen] = useState(false);
   const [motionTime, setMotionTime] = useState(12);
   const [logError, setLogError] = useState("");
@@ -300,6 +302,7 @@ export default function Session() {
   const refreshGen = useRef(0);
   const loggingRef = useRef(false);
   const restEndsRef = useRef(null);
+  const padFreshRef = useRef(true);
 
   useEffect(() => {
     const id = localStorage.getItem(ACTIVE_WORKOUT_KEY);
@@ -621,19 +624,101 @@ export default function Session() {
     }
   }
 
+  function openPad(nextMetric) {
+    setMetric(nextMetric);
+    padFreshRef.current = true;
+    setLogOpen(true);
+  }
+
   function padKey(key) {
     if (!focus) return;
     const id = focus.exercise.id;
     setDrafts((d) => {
       const cur = d[id] ?? { reps: "", weight: "" };
       let val = cur[metric] || "";
-      if (key === "back") val = val.slice(0, -1);
-      else {
+      if (key === "back") {
+        // Backspace after opening the pad edits the existing value.
+        padFreshRef.current = false;
+        val = val.slice(0, -1);
+      } else if (padFreshRef.current) {
+        // First digit after opening replaces the old weight/reps.
+        padFreshRef.current = false;
+        val = key;
+      } else {
         val = (val + key).slice(0, 5);
         if (/^0\d/.test(val)) val = val.slice(1);
       }
       return { ...d, [id]: { ...cur, [metric]: val } };
     });
+  }
+
+  function openEditSet(s) {
+    if (s.pending) return;
+    setEditSet({ id: s.id, exercise_id: s.exercise_id, set_number: s.set_number, weight: String(s.weight ?? 0), reps: String(s.reps ?? 0) });
+  }
+
+  async function saveEditSet() {
+    if (!editSet || editSaving) return;
+    const reps = parseInt(editSet.reps, 10);
+    const weight = parseFloat(editSet.weight);
+    if (!reps || reps <= 0) return;
+    setEditSaving(true);
+    setLogError("");
+    try {
+      const supabase = await getSupabase();
+      if (!supabase) throw new Error("no-client");
+      const nextWeight = Number.isFinite(weight) ? weight : 0;
+      const { error } = await supabase
+        .from("sets")
+        .update({ reps, weight: nextWeight })
+        .eq("id", editSet.id);
+      if (error) throw error;
+      setsRef.current = setsRef.current.map((s) => (
+        s.id === editSet.id ? { ...s, reps, weight: nextWeight } : s
+      ));
+      setSets(setsRef.current);
+      setEditSet(null);
+    } catch {
+      setLogError("That didn't save. Try again.");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function deleteEditSet() {
+    if (!editSet || editSaving) return;
+    if (!confirm("Delete this set?")) return;
+    setEditSaving(true);
+    setLogError("");
+    try {
+      const supabase = await getSupabase();
+      if (!supabase) throw new Error("no-client");
+      const { error } = await supabase.from("sets").delete().eq("id", editSet.id);
+      if (error) throw error;
+      const remaining = setsRef.current.filter((s) => s.id !== editSet.id);
+      // Keep set_number contiguous for this exercise after a mid-session delete.
+      const sameEx = remaining
+        .filter((s) => s.exercise_id === editSet.exercise_id)
+        .sort((a, b) => a.set_number - b.set_number);
+      const renumber = new Map(sameEx.map((s, i) => [s.id, i + 1]));
+      const nextSets = remaining.map((s) => (
+        renumber.has(s.id) ? { ...s, set_number: renumber.get(s.id) } : s
+      ));
+      setsRef.current = nextSets;
+      setSets(nextSets);
+      setEditSet(null);
+      // Persist renumbered set_number only for rows that actually changed.
+      await Promise.all(
+        sameEx
+          .filter((s) => s.set_number !== renumber.get(s.id))
+          .map((s) => supabase.from("sets").update({ set_number: renumber.get(s.id) }).eq("id", s.id))
+      );
+    } catch {
+      setLogError("That didn't save. Try again.");
+      if (workoutId) refreshSets(workoutId);
+    } finally {
+      setEditSaving(false);
+    }
   }
 
   async function finishWorkout() {
@@ -809,7 +894,7 @@ export default function Session() {
               <span>Weight</span>
               <div className="stepper">
                 <button className="step" type="button" aria-label="Decrease weight" onClick={() => { setMetric("weight"); bump("weight", -5); }}>−</button>
-                <button className="figure" type="button" onClick={() => { setMetric("weight"); setLogOpen(true); }}>
+                <button className="figure" type="button" onClick={() => openPad("weight")}>
                   {weightLabel}{weightLabel === "BW" ? null : <small>lb</small>}
                 </button>
                 <button className="step" type="button" aria-label="Increase weight" onClick={() => { setMetric("weight"); bump("weight", 5); }}>+</button>
@@ -819,7 +904,7 @@ export default function Session() {
               <span>Reps</span>
               <div className="stepper">
                 <button className="step" type="button" aria-label="Decrease reps" onClick={() => { setMetric("reps"); bump("reps", -1); }}>−</button>
-                <button className="figure" type="button" onClick={() => { setMetric("reps"); setLogOpen(true); }}>{draft.reps || "0"}</button>
+                <button className="figure" type="button" onClick={() => openPad("reps")}>{draft.reps || "0"}</button>
                 <button className="step" type="button" aria-label="Increase reps" onClick={() => { setMetric("reps"); bump("reps", 1); }}>+</button>
               </div>
             </div>
@@ -862,7 +947,7 @@ export default function Session() {
               </div>
             </div>
           )}
-          <LoggedPanel sets={exSets} volume={volume} />
+          <LoggedPanel sets={exSets} volume={volume} onEdit={openEditSet} />
           <QueuePanel grouped={grouped} focusId={focus.exercise.id} onFocus={focusExercise} onAdd={openPicker} />
         </>
       ) : (
@@ -871,6 +956,48 @@ export default function Session() {
           <p className="lede">The session has no lifts yet.</p>
           <button className="btn btn-primary" type="button" onClick={openPicker}>Choose exercise</button>
         </>
+      )}
+
+      {editSet && (
+        <div className="sheet">
+          <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => setEditSet(null)} />
+          <div className="sheet-card" role="dialog" aria-modal="true" aria-label="Edit set">
+            <header>
+              <h2>Edit set {editSet.set_number}</h2>
+              <button className="text-btn" type="button" onClick={() => setEditSet(null)}>Close</button>
+            </header>
+            <label className="field">
+              <span>Weight (lb)</span>
+              <input
+                className="input"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.5"
+                value={editSet.weight}
+                onChange={(e) => setEditSet((prev) => ({ ...prev, weight: e.target.value }))}
+              />
+            </label>
+            <label className="field">
+              <span>Reps</span>
+              <input
+                className="input"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                step="1"
+                value={editSet.reps}
+                onChange={(e) => setEditSet((prev) => ({ ...prev, reps: e.target.value }))}
+              />
+            </label>
+            <div className="title-actions" style={{ marginTop: 14 }}>
+              <button className="btn btn-primary" type="button" onClick={saveEditSet} disabled={editSaving || !parseInt(editSet.reps, 10)}>
+                {editSaving ? "Saving…" : "Save"}
+              </button>
+              <button className="btn btn-bad" type="button" onClick={deleteEditSet} disabled={editSaving}>Delete set</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {orderOpen && (

@@ -116,7 +116,8 @@ export default function Home() {
   const finished = workouts;
   const weekWorkouts = weekStart ? finished.filter((w) => new Date(w.started_at) >= weekStart) : [];
   const loggedToday = finished.find((w) => localIso(w.started_at) === todayIso) || null;
-  const lastSession = finished.find((w) => localIso(w.started_at) < todayIso) || null;
+  // Most recent finished session, including one logged earlier today.
+  const lastSession = finished[0] || null;
 
   const routines = useMemo(() => {
     const builtins = BUILTIN_ROUTINES.map((routine) => ({
@@ -199,10 +200,8 @@ export default function Home() {
       router.push("/session");
       return;
     }
-    if (loggedToday) {
-      router.push(`/history?id=${loggedToday.id}`);
-      return;
-    }
+    // Keep Start workout available after a session is already logged today.
+    // Finished work is opened from Last session / History instead.
     if (!active?.exerciseIds?.length || !user || starting) {
       router.push("/workout");
       return;
@@ -268,11 +267,11 @@ export default function Home() {
       </div>
       <section className="ready">
         <div>
-          <p className="ready-label">{loggedToday ? "Logged" : hasActive ? "In progress" : nextSplitDay ? "Up next" : "Ready to train"}</p>
+          <p className="ready-label">{hasActive ? "In progress" : loggedToday ? "Logged" : nextSplitDay && !active ? "Up next" : "Ready to train"}</p>
           <h1>{active?.name || (nextSplitDay ? nextSplitDay.label : DOW[todayIdx])}</h1>
           <p className="sub">
-            {loggedToday
-              ? "Open the finished session"
+            {hasActive
+              ? "Resume the open session"
               : active?.exerciseIds?.length
                 ? `${active.exerciseIds.length} exercises · ${active.focus || ""}`
                 : nextSplitDay
@@ -280,7 +279,7 @@ export default function Home() {
                   : "Choose a workout for this day."}
           </p>
         </div>
-        <button className="play" type="button" aria-label={loggedToday ? "View workout" : "Start workout"} onClick={onPlay} disabled={starting}>
+        <button className="play" type="button" aria-label={hasActive ? "Resume workout" : "Start workout"} onClick={onPlay} disabled={starting}>
           <Icon name="play" />
         </button>
       </section>
