@@ -92,9 +92,16 @@ function HistoryInner() {
       return;
     }
     for (const [setId, vals] of Object.entries(editSets)) {
+      const reps = Number(vals.reps);
+      const weight = Number(vals.weight);
+      if (!Number.isFinite(reps) || reps <= 0) {
+        setSaving(false);
+        setActionError("Each set needs at least 1 rep.");
+        return;
+      }
       const { error } = await supabase
         .from("sets")
-        .update({ reps: Number(vals.reps) || 0, weight: Number(vals.weight) || 0 })
+        .update({ reps, weight: Number.isFinite(weight) ? weight : 0 })
         .eq("id", setId);
       if (error) {
         setSaving(false);
@@ -226,6 +233,7 @@ function HistoryInner() {
       <h1>History</h1>
       <p className="lede">Finished sessions, newest first.</p>
       {actionError ? <p className="err" role="alert">{actionError}</p> : null}
+      {actionError ? <button className="text-btn" type="button" onClick={() => { setLoading(true); load(); }}>Try again</button> : null}
       {loading ? <p className="loading"><Spinner /></p> : actionError ? null : workouts.length === 0 ? (
         <p className="empty">No finished sessions yet.</p>
       ) : (

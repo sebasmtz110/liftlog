@@ -6,7 +6,6 @@ import Image from "next/image";
 import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../lib/supabase";
 import { EXERCISES, ensureCatalog } from "../lib/catalog";
 import { readCached, isFresh, fetchShared, fetchWorkoutsList, loadSplitCached, workoutsKey } from "../lib/dataCache";
-import { volumeOf } from "../lib/volume";
 import { BUILTIN_ROUTINES, resolveNames, routineLabel } from "../lib/routines";
 import { loadDayPlans, saveDayPlan } from "../lib/dayPlans";
 import { startSession } from "../lib/startSession";
@@ -21,13 +20,6 @@ function localIso(value) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${m}-${day}`;
-}
-
-function mondayOf(d) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
-  return x;
 }
 
 export default function Home() {
@@ -112,9 +104,7 @@ export default function Home() {
 
   const todayIdx = now ? (now.getDay() + 6) % 7 : 0;
   const todayIso = now ? localIso(now) : "";
-  const weekStart = now ? mondayOf(now) : null;
   const finished = workouts;
-  const weekWorkouts = weekStart ? finished.filter((w) => new Date(w.started_at) >= weekStart) : [];
   const loggedToday = finished.find((w) => localIso(w.started_at) === todayIso) || null;
   // Most recent finished session, including one logged earlier today.
   const lastSession = finished[0] || null;

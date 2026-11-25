@@ -16,7 +16,11 @@ export default function Help() {
       </section>
       <section className="panel" style={{ marginTop: 16 }}>
         <h2>Movement</h2>
-        <p>The movement screen and the session carry data-muse-slot=&quot;exercise-motion&quot;. If window.ALDER_MOTION_MOUNT is set, it is called with that element. The page emits alder:motion with the exercise, phase, time, and duration.</p>
+        <p>In a session, Movement opens a form cue for the current lift. Scrub the timeline for setup, the working reps, and the finish position.</p>
+      </section>
+      <section className="panel" style={{ marginTop: 16 }}>
+        <h2>Edit a set</h2>
+        <p>During a session, tap a logged set to change its weight or reps, or delete just that set. In History, open a session, tap Edit, then Delete next to a set.</p>
       </section>
     </section>
   );

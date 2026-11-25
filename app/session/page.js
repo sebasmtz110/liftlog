@@ -400,6 +400,50 @@ export default function Session() {
     })();
   }, [user]);
 
+  // Prefill drafts from the last logged set when still on catalog defaults.
+  useEffect(() => {
+    if (!history.length || !catalog.length || !addedExerciseIds.length) return;
+    setDrafts((d) => {
+      let changed = false;
+      const next = { ...d };
+      for (const exId of addedExerciseIds) {
+        const row = catalog.find((e) => e.id === exId);
+        if (!row) continue;
+        const meta = catalogByName(row.name);
+        const defaultW = meta?.bodyweight ? "0" : String(meta?.weight ?? 45);
+        const defaultR = String(meta?.reps ?? 8);
+        const cur = next[exId];
+        if (cur && (cur.weight !== defaultW || cur.reps !== defaultR)) continue;
+        let prev = null;
+        for (const w of history) {
+          const rows = (w.sets ?? []).filter((s) => s.exercise_id === exId);
+          if (!rows.length) continue;
+          const last = rows[rows.length - 1];
+          prev = { weight: String(Number(last.weight) || 0), reps: String(last.reps ?? defaultR) };
+          break;
+        }
+        if (!prev) continue;
+        next[exId] = prev;
+        changed = true;
+      }
+      return changed ? next : d;
+    });
+  }, [history, catalog, addedExerciseIds]);
+
+  // Escape closes the open pad / edit sheet / picker / order sheet.
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== "Escape") return;
+      if (editSet) { setEditSet(null); return; }
+      if (logOpen) { setLogOpen(false); return; }
+      if (pickerOpen) { setPickerOpen(false); return; }
+      if (orderOpen) { setOrderOpen(false); return; }
+      if (motionOpen) { setMotionOpen(false); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editSet, logOpen, pickerOpen, orderOpen, motionOpen]);
+
   // Mirror the exercise order for use inside pointer handlers.
   useEffect(() => {
     orderRef.current = addedExerciseIds;
@@ -581,6 +625,7 @@ export default function Session() {
     const weight = parseFloat(draft.weight);
     if (!reps || reps <= 0) return;
     loggingRef.current = true;
+    setLogging(true);
     const existing = setsRef.current.filter((s) => s.exercise_id === exercise.id).length;
     const tempId = `pending-${Date.now()}-${existing + 1}`;
     const optimistic = {
@@ -601,8 +646,6 @@ export default function Session() {
     setRestLeft(restDur);
     setRestOn(true);
     setShowRest(true);
-    setLogging(false);
-    loggingRef.current = false;
     try {
       const supabase = await getSupabase();
       if (!supabase) throw new Error("no-client");
@@ -620,7 +663,14 @@ export default function Session() {
     } catch {
       setsRef.current = setsRef.current.filter((s) => s.id !== tempId);
       setSets(setsRef.current);
+      restEndsRef.current = null;
+      setRestOn(false);
+      setShowRest(false);
+      setRestLeft(null);
       setLogError("That set didn't save. Log it again.");
+    } finally {
+      loggingRef.current = false;
+      setLogging(false);
     }
   }
 
@@ -723,6 +773,7 @@ export default function Session() {
 
   async function finishWorkout() {
     if (!workoutId) return;
+    if (!setsRef.current.length && !confirm("No sets logged. Finish anyway?")) return;
     setFinishing(true);
     const supabase = await getSupabase();
     const { error } = supabase
@@ -880,7 +931,9 @@ export default function Session() {
               <h1>{focus.exercise.name}</h1>
               <p className="lede">
                 Set {setNum} of {planned}
-                {previous ? ` · Last time ${previous.weight} lb × ${previous.reps}` : " · No earlier set in the log"}
+                {previous
+                  ? ` · Last time ${previous.weight > 0 ? `${previous.weight} lb` : "BW"} × ${previous.reps}`
+                  : " · No earlier set in the log"}
                 {" · "}<ElapsedClock startedAt={startedAt} />
               </p>
             </div>
