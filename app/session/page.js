@@ -12,19 +12,37 @@ import { volumeOf } from "../../lib/volume";
 import Icon from "../components/Icon";
 import Plates from "../components/Plates";
 import { loadWorkoutsCached, invalidateWorkouts } from "../../lib/dataCache";
+import { getRestDefault } from "../../lib/prefs";
 
-const REST_DEFAULT = 90;
-const RING_C = 326.73;
+const RING_C = 326.73; // circumference for r=52
+
+function pingRestDone() {
+  try { navigator.vibrate?.([90, 50, 90]); } catch { /* noop */ }
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) {
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.value = 0.07;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+      osc.stop(ctx.currentTime + 0.32);
+      setTimeout(() => ctx.close().catch(() => {}), 500);
+    }
+  } catch { /* noop */ }
+  const prev = document.title;
+  document.title = "Rest done · LiftLog";
+  setTimeout(() => { if (document.title === "Rest done · LiftLog") document.title = prev || "LiftLog"; }, 5000);
+}
 
 function clock(sec) {
   const s = Math.max(0, Math.round(sec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-function fmtVol(v) {
-  const n = Math.round(v || 0);
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-  return String(n);
 }
 
 const StablePlates = memo(Plates);
@@ -119,7 +137,7 @@ const StableCover = memo(function StableCover({ src }) {
   );
 });
 
-const OrderSheet = memo(function OrderSheet({ rows, onClose, onPick, onReorder }) {
+const OrderSheet = memo(function OrderSheet({ rows, onClose, onPick, onReorder, onRemove }) {
   const listRef = useRef(null);
   const dragState = useRef(null);
   const justDraggedRef = useRef(false);
@@ -255,6 +273,15 @@ const OrderSheet = memo(function OrderSheet({ rows, onClose, onPick, onReorder }
                   <strong>{g.exercise.name}</strong>
                   <small>{`${done} ${done === 1 ? "set" : "sets"}`}</small>
                 </span>
+                {done === 0 ? (
+                  <button
+                    className="text-btn"
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onRemove(g.exercise.id); }}
+                  >
+                    Remove
+                  </button>
+                ) : null}
               </div>
             );
           })}
@@ -283,7 +310,8 @@ export default function Session() {
   const [metric, setMetric] = useState("weight");
   const [restLeft, setRestLeft] = useState(null);
   const [restOn, setRestOn] = useState(false);
-  const [restDur, setRestDur] = useState(REST_DEFAULT);
+  const [restDur, setRestDur] = useState(90);
+  const [restDoneFlash, setRestDoneFlash] = useState(false);
   const [showRest, setShowRest] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [editSet, setEditSet] = useState(null);
@@ -303,6 +331,31 @@ export default function Session() {
   const loggingRef = useRef(false);
   const restEndsRef = useRef(null);
   const padFreshRef = useRef(true);
+
+  useEffect(() => {
+    setRestDur(getRestDefault());
+  }, []);
+
+  // Keep the screen awake for the whole open session (gym pocket / rack use).
+  useEffect(() => {
+    if (!workoutId || typeof navigator === "undefined" || !navigator.wakeLock?.request) return undefined;
+    let lock = null;
+    let cancelled = false;
+    async function request() {
+      try {
+        if (cancelled || document.visibilityState !== "visible") return;
+        lock = await navigator.wakeLock.request("screen");
+      } catch { /* unsupported or denied */ }
+    }
+    request();
+    const onVis = () => { if (document.visibilityState === "visible") request(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVis);
+      try { lock?.release?.(); } catch { /* noop */ }
+    };
+  }, [workoutId]);
 
   useEffect(() => {
     const id = localStorage.getItem(ACTIVE_WORKOUT_KEY);
@@ -373,7 +426,7 @@ export default function Session() {
         if (snap.focusId) setFocusId(snap.focusId);
         if (snap.rest && snap.rest.endsAt > Date.now()) {
           restEndsRef.current = snap.rest.endsAt;
-          setRestDur(snap.rest.dur || REST_DEFAULT);
+          setRestDur(snap.rest.dur || getRestDefault());
           setRestLeft(Math.max(1, Math.ceil((snap.rest.endsAt - Date.now()) / 1000)));
           setRestOn(true);
           setShowRest(true);
@@ -473,8 +526,10 @@ export default function Session() {
       if (left <= 0) {
         restEndsRef.current = null;
         setRestOn(false);
-        setShowRest(false);
-        setRestLeft(null);
+        setRestLeft(0);
+        setRestDoneFlash(true);
+        setShowRest(true);
+        pingRestDone();
       }
     };
     tick();
@@ -614,7 +669,24 @@ export default function Session() {
     restEndsRef.current = null;
     setRestOn(false);
     setRestLeft(null);
+    setRestDoneFlash(false);
     setShowRest(false);
+  }
+
+  function advanceIfDone(exerciseId) {
+    const row = catalog.find((e) => e.id === exerciseId);
+    const plannedSets = catalogByName(row?.name)?.sets;
+    if (!plannedSets) return;
+    const logged = setsRef.current.filter((s) => s.exercise_id === exerciseId).length;
+    if (logged < plannedSets) return;
+    const nextId = orderRef.current.find((id) => {
+      if (id === exerciseId) return false;
+      const name = catalog.find((e) => e.id === id)?.name;
+      const plan = catalogByName(name)?.sets;
+      const n = setsRef.current.filter((s) => s.exercise_id === id).length;
+      return !plan || n < plan;
+    });
+    if (nextId) setFocusId(nextId);
   }
 
   async function logSet() {
@@ -659,6 +731,7 @@ export default function Session() {
       if (error || !data) throw error || new Error("insert");
       setsRef.current = setsRef.current.map((s) => (s.id === tempId ? { ...data, exercises: optimistic.exercises } : s));
       setSets(setsRef.current);
+      advanceIfDone(exercise.id);
       refreshSets(workoutId);
     } catch {
       setsRef.current = setsRef.current.filter((s) => s.id !== tempId);
@@ -667,6 +740,7 @@ export default function Session() {
       setRestOn(false);
       setShowRest(false);
       setRestLeft(null);
+      setRestDoneFlash(false);
       setLogError("That set didn't save. Log it again.");
     } finally {
       loggingRef.current = false;
@@ -773,6 +847,10 @@ export default function Session() {
 
   async function finishWorkout() {
     if (!workoutId) return;
+    if (loggingRef.current || setsRef.current.some((s) => s.pending)) {
+      setLogError("Wait for the last set to save, then finish.");
+      return;
+    }
     if (!setsRef.current.length && !confirm("No sets logged. Finish anyway?")) return;
     setFinishing(true);
     const supabase = await getSupabase();
@@ -835,6 +913,13 @@ export default function Session() {
   const reorderExercises = useCallback((next) => {
     orderRef.current = next;
     setAddedExerciseIds(next);
+  }, []);
+  const removeExercise = useCallback((exId) => {
+    if (setsRef.current.some((s) => s.exercise_id === exId)) return;
+    const next = orderRef.current.filter((id) => id !== exId);
+    orderRef.current = next;
+    setAddedExerciseIds(next);
+    setFocusId((cur) => (cur === exId ? (next[0] || null) : cur));
   }, []);
 
   if (loading) {
@@ -975,15 +1060,38 @@ export default function Session() {
           </div>
           {logError ? <p className="note" role="alert">{logError}</p> : null}
           {showRest && (
-            <div className="rest" role="region" aria-label="Rest">
+            <div className={`rest${restDoneFlash ? " is-done" : ""}`} role="region" aria-label="Rest">
               <div className="stripe" />
-              <p className="figure">{clock(restLeft ?? 0)}</p>
-              <p>{restOn ? "Resting before the next set." : "Rest is paused."}</p>
+              <div className="rest-ring" aria-hidden="true">
+                <svg viewBox="0 0 120 120" width="120" height="120">
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="var(--border)" strokeWidth="8" />
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="52"
+                    fill="none"
+                    stroke="var(--accent)"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={RING_C}
+                    strokeDashoffset={restDoneFlash || !restDur ? 0 : RING_C * (1 - Math.max(0, restLeft ?? 0) / restDur)}
+                    transform="rotate(-90 60 60)"
+                  />
+                </svg>
+                <p className="figure">{restDoneFlash ? "0:00" : clock(restLeft ?? 0)}</p>
+              </div>
+              <p>{restDoneFlash ? "Rest done — go again." : restOn ? "Resting before the next set." : "Rest is paused."}</p>
               <div className="title-actions" style={{ marginTop: 10 }}>
-                <button className="btn btn-line" type="button" onClick={toggleRest}>{restOn ? "Pause" : "Resume"}</button>
-                <button className="btn btn-line" type="button" onClick={() => nudge(1)}>+15s</button>
-                <button className="btn btn-line" type="button" onClick={() => nudge(-1)}>−15s</button>
-                <button className="btn btn-quiet" type="button" onClick={skipRest}>Skip rest</button>
+                {restDoneFlash ? (
+                  <button className="btn btn-primary" type="button" onClick={skipRest}>Next set</button>
+                ) : (
+                  <>
+                    <button className="btn btn-line" type="button" onClick={toggleRest}>{restOn ? "Pause" : "Resume"}</button>
+                    <button className="btn btn-line" type="button" onClick={() => nudge(1)}>+15s</button>
+                    <button className="btn btn-line" type="button" onClick={() => nudge(-1)}>−15s</button>
+                    <button className="btn btn-quiet" type="button" onClick={skipRest}>Skip rest</button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1054,7 +1162,7 @@ export default function Session() {
       )}
 
       {orderOpen && (
-        <OrderSheet rows={orderList} onClose={closeOrder} onPick={pickFromOrder} onReorder={reorderExercises} />
+        <OrderSheet rows={orderList} onClose={closeOrder} onPick={pickFromOrder} onReorder={reorderExercises} onRemove={removeExercise} />
       )}
 
       {pickerOpen && (

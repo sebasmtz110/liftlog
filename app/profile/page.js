@@ -13,6 +13,10 @@ export default function Profile() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const [name, setName] = useState("");
+  const [nameDraft, setNameDraft] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState("");
   const [photo, setPhoto] = useState("/assets/avatar-default.svg");
   const [photoError, setPhotoError] = useState("");
 
@@ -28,9 +32,35 @@ export default function Profile() {
     getSupabase().then((supabase) => {
       if (!supabase) return;
       supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
-        .then(({ data }) => { if (data?.display_name) setName(data.display_name); });
+        .then(({ data }) => {
+          if (data?.display_name) {
+            setName(data.display_name);
+            setNameDraft(data.display_name);
+          }
+        });
     });
   }, [user]);
+
+  async function saveName() {
+    const next = nameDraft.trim();
+    if (!next || !user || !isConfigured) return;
+    setSavingName(true);
+    setNameError("");
+    const supabase = await getSupabase();
+    if (!supabase) {
+      setSavingName(false);
+      setNameError("That didn't save. Try again.");
+      return;
+    }
+    const { error } = await supabase.from("profiles").upsert({ id: user.id, display_name: next });
+    setSavingName(false);
+    if (error) {
+      setNameError("That didn't save. Try again.");
+      return;
+    }
+    setName(next);
+    setEditingName(false);
+  }
 
   async function onPhoto(e) {
     const file = e.target.files?.[0];
@@ -71,6 +101,30 @@ export default function Profile() {
       </div>
       <p className="note">The photo stays in this browser and is not uploaded.</p>
       {photoError ? <p className="err" role="alert">{photoError}</p> : null}
+      <section className="panel" style={{ marginTop: 16 }}>
+        <div className="panel-head">
+          <h2>Display name</h2>
+          {!editingName ? (
+            <button className="text-btn" type="button" onClick={() => { setNameDraft(name); setEditingName(true); }}>Edit</button>
+          ) : (
+            <button className="text-btn" type="button" onClick={() => { setEditingName(false); setNameError(""); }}>Cancel</button>
+          )}
+        </div>
+        {editingName ? (
+          <>
+            <label className="field">
+              <span>Name</span>
+              <input className="input" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} autoComplete="nickname" />
+            </label>
+            {nameError ? <p className="err" role="alert">{nameError}</p> : null}
+            <button className="btn btn-primary" type="button" disabled={savingName || !nameDraft.trim()} onClick={saveName}>
+              {savingName ? "Saving…" : "Save"}
+            </button>
+          </>
+        ) : (
+          <p className="note">{name || "No name set yet."}</p>
+        )}
+      </section>
       <nav className="panel menu" style={{ marginTop: 16 }} aria-label="Account">
         {links.map(([href, label]) => (
           <button key={href} type="button" onClick={() => router.push(href)}>

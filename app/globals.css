@@ -476,6 +476,25 @@ input:disabled, select:disabled { color: var(--faint); }
 }
 .rest .figure { font-size: 40px; }
 .rest p { margin: 4px 0 0; color: var(--muted); }
+.rest-ring {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 4px auto 0;
+}
+.rest-ring svg { display: block; }
+.rest-ring .figure {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.rest.is-done { box-shadow: inset 0 0 0 1px var(--accent); }
+.rest.is-done p { color: var(--accent); }
 
 .keys {
   display: grid;

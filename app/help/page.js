@@ -22,6 +22,10 @@ export default function Help() {
         <h2>Edit a set</h2>
         <p>During a session, tap a logged set to change its weight or reps, or delete just that set. In History, open a session, tap Edit, then Delete next to a set.</p>
       </section>
+      <section className="panel" style={{ marginTop: 16 }}>
+        <h2>Rest</h2>
+        <p>After you log a set the rest timer runs. When it ends the phone vibrates and the title flashes. Change the default length in Settings. Order lets you remove a lift you have not logged yet; finished planned sets move the queue to the next lift.</p>
+      </section>
     </section>
   );
 }
