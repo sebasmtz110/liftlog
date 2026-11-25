@@ -239,12 +239,11 @@ a.log { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-.draft-lib .search img {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  object-fit: cover;
+.draft-lib .search .icon {
+  width: 20px;
+  height: 20px;
   flex: none;
+  color: var(--muted);
 }
 .draft-lib .search input {
   height: 40px;

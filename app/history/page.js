@@ -92,9 +92,16 @@ function HistoryInner() {
       return;
     }
     for (const [setId, vals] of Object.entries(editSets)) {
+      const reps = Number(vals.reps);
+      const weight = Number(vals.weight);
+      if (!Number.isFinite(reps) || reps <= 0) {
+        setSaving(false);
+        setActionError("Each set needs at least 1 rep.");
+        return;
+      }
       const { error } = await supabase
         .from("sets")
-        .update({ reps: Number(vals.reps) || 0, weight: Number(vals.weight) || 0 })
+        .update({ reps, weight: Number.isFinite(weight) ? weight : 0 })
         .eq("id", setId);
       if (error) {
         setSaving(false);
@@ -132,6 +139,29 @@ function HistoryInner() {
     router.replace("/history");
     // The deleted workout is in the cached list — drop it so the reload
     // below fetches fresh rows instead of showing the deleted session.
+    invalidateWorkouts(user?.id);
+    await load();
+  };
+
+  const deleteSet = async (setId) => {
+    if (!confirm("Delete this set?")) return;
+    setActionError("");
+    const supabase = await getSupabase();
+    if (!supabase) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    const { error } = await supabase.from("sets").delete().eq("id", setId);
+    if (error) {
+      setActionError("That didn't save. Try again.");
+      return;
+    }
+    setEditSets((m) => {
+      const next = { ...m };
+      delete next[setId];
+      return next;
+    });
+    // Drop the cached list so the reload below shows the set gone.
     invalidateWorkouts(user?.id);
     await load();
   };
@@ -175,12 +205,13 @@ function HistoryInner() {
               <span className="note">{g.muscle}</span>
             </div>
             {g.sets.map((s, idx) => editing ? (
-              <div key={s.id} className="lift">
+              <div key={s.id} className="lift" style={{ gridTemplateColumns: "minmax(0, 1fr) auto auto auto auto auto" }}>
                 <span className="scheme">Set {idx + 1}</span>
                 <input className="input" style={{ width: 90 }} type="number" aria-label={`Weight for set ${idx + 1}`} value={editSets[s.id]?.weight ?? ""} onChange={(e) => setEditSets((m) => ({ ...m, [s.id]: { ...m[s.id], weight: e.target.value } }))} />
                 <span className="note">lb</span>
                 <input className="input" style={{ width: 80 }} type="number" aria-label={`Reps for set ${idx + 1}`} value={editSets[s.id]?.reps ?? ""} onChange={(e) => setEditSets((m) => ({ ...m, [s.id]: { ...m[s.id], reps: e.target.value } }))} />
                 <span className="note">reps</span>
+                <button className="btn btn-bad" type="button" onClick={() => deleteSet(s.id)}>Delete</button>
               </div>
             ) : (
               <div key={s.id} className="lift">
@@ -202,6 +233,7 @@ function HistoryInner() {
       <h1>History</h1>
       <p className="lede">Finished sessions, newest first.</p>
       {actionError ? <p className="err" role="alert">{actionError}</p> : null}
+      {actionError ? <button className="text-btn" type="button" onClick={() => { setLoading(true); load(); }}>Try again</button> : null}
       {loading ? <p className="loading"><Spinner /></p> : actionError ? null : workouts.length === 0 ? (
         <p className="empty">No finished sessions yet.</p>
       ) : (

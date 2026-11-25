@@ -79,6 +79,12 @@ export default function Stats() {
   }, [user]);
 
   useEffect(() => {
+    if (!confirmPhotoDel) return undefined;
+    const t = setTimeout(() => setConfirmPhotoDel(null), 4000);
+    return () => clearTimeout(t);
+  }, [confirmPhotoDel]);
+
+  useEffect(() => {
     setNow(new Date());
     if (!isConfigured) {
       setLoading(false);
@@ -292,8 +298,10 @@ export default function Stats() {
       </div>
       {actionError ? <p className="err" role="alert">{actionError}</p> : null}
 
-      {loading || !model ? <p className="loading"><Spinner /></p> : actionError ? null : (
+      {loading || !model ? <p className="loading"><Spinner /></p> : (
         <div className="stack" style={{ marginTop: "var(--gap)" }}>
+          {!actionError ? (
+            <>
           <section className="panel">
             <div className="stat-tiles">
               <div className="stat-tile is-vol">
@@ -335,7 +343,7 @@ export default function Stats() {
           ) : null}
           {model.prs.length > 0 ? (
             <section className="panel">
-              <div className="panel-head"><h2>🏆 Personal records</h2></div>
+              <div className="panel-head"><h2>Personal records</h2></div>
               {model.prs.slice(0, 5).map(([name, b]) => (
                 <div key={name} className="lift is-plain">
                   <span className="lift-copy"><strong>{name}</strong></span>
@@ -343,6 +351,8 @@ export default function Stats() {
                 </div>
               ))}
             </section>
+          ) : null}
+            </>
           ) : null}
             <section className="panel">
               <div className="panel-head">
@@ -455,13 +465,13 @@ function VolumeChart({ series }) {
   const step = Math.max(1, Math.floor(series.length / 6));
   return (
     <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Volume">
-      <path d={area} fill="rgba(141,59,46,0.12)" />
-      <path d={d} fill="none" stroke="#8d3b2e" strokeWidth="3" strokeLinejoin="round" />
+      <path d={area} fill="var(--accent)" fillOpacity="0.12" />
+      <path d={d} fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinejoin="round" />
       {series.map((p, i) => (
-        <circle key={i} cx={x(i)} cy={y(p.v)} r="3.5" fill="#141414" stroke="#8d3b2e" strokeWidth="2" />
+        <circle key={i} cx={x(i)} cy={y(p.v)} r="3.5" fill="var(--ground)" stroke="var(--accent)" strokeWidth="2" />
       ))}
       {series.map((p, i) => (i % step === 0 ? (
-        <text key={`l${i}`} x={x(i)} y={h - 6} textAnchor="middle" fill="#8a8783" fontSize="12">{p.label}</text>
+        <text key={`l${i}`} x={x(i)} y={h - 6} textAnchor="middle" fill="var(--faint)" fontSize="12">{p.label}</text>
       ) : null))}
     </svg>
   );

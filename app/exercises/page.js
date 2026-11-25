@@ -167,6 +167,11 @@ function ExercisesInner() {
   async function startExercise(ex) {
     if (!user || !isConfigured) return;
     setStartError("");
+    const existing = localStorage.getItem(ACTIVE_WORKOUT_KEY);
+    if (existing) {
+      router.push("/session");
+      return;
+    }
     const supabase = await getSupabase();
     if (!supabase) {
       setStartError("That workout didn't start. Try again.");
@@ -281,9 +286,13 @@ function ExercisesInner() {
             </ol>
           )}
           {tab === "Tips" && (
-            <ul className="tips">
-              {(open.tips || []).map((t) => <li key={t}>{t}</li>)}
-            </ul>
+            (open.tips || []).length ? (
+              <ul className="tips">
+                {open.tips.map((t) => <li key={t}>{t}</li>)}
+              </ul>
+            ) : (
+              <p className="empty">No tips for this lift yet.</p>
+            )
           )}
           {tab === "Sets & Reps" && (
             <div className="rx">
@@ -310,7 +319,7 @@ function ExercisesInner() {
       <h1>{swapDate ? "Switch exercise" : "Library"}</h1>
       <form className="search-wrap" role="search" onSubmit={(e) => e.preventDefault()}>
         <label className="search">
-          <img src="/photos/split-bells.jpg" alt="" />
+          <Icon name="search" />
           <input type="search" placeholder="Search exercises..." value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" enterKeyHint="search" />
         </label>
       </form>

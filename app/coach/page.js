@@ -128,7 +128,7 @@ export default function Coach() {
         <>
           <div className="chat" style={{ marginTop: 16 }}>
             {messages.map((m, i) => (
-              <div key={i} className={`bubble${m.me ? " me" : ""}`}>{m.text}</div>
+              <div key={i} className={`bubble${m.me ? " user" : ""}`}>{m.text}</div>
             ))}
           </div>
           <div className="chips">

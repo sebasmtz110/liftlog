@@ -6,7 +6,6 @@ import Image from "next/image";
 import { getSupabase, isConfigured, ACTIVE_WORKOUT_KEY } from "../lib/supabase";
 import { EXERCISES, ensureCatalog } from "../lib/catalog";
 import { readCached, isFresh, fetchShared, fetchWorkoutsList, loadSplitCached, workoutsKey } from "../lib/dataCache";
-import { volumeOf } from "../lib/volume";
 import { BUILTIN_ROUTINES, resolveNames, routineLabel } from "../lib/routines";
 import { loadDayPlans, saveDayPlan } from "../lib/dayPlans";
 import { startSession } from "../lib/startSession";
@@ -21,13 +20,6 @@ function localIso(value) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${m}-${day}`;
-}
-
-function mondayOf(d) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
-  return x;
 }
 
 export default function Home() {
@@ -112,11 +104,10 @@ export default function Home() {
 
   const todayIdx = now ? (now.getDay() + 6) % 7 : 0;
   const todayIso = now ? localIso(now) : "";
-  const weekStart = now ? mondayOf(now) : null;
   const finished = workouts;
-  const weekWorkouts = weekStart ? finished.filter((w) => new Date(w.started_at) >= weekStart) : [];
   const loggedToday = finished.find((w) => localIso(w.started_at) === todayIso) || null;
-  const lastSession = finished.find((w) => localIso(w.started_at) < todayIso) || null;
+  // Most recent finished session, including one logged earlier today.
+  const lastSession = finished[0] || null;
 
   const routines = useMemo(() => {
     const builtins = BUILTIN_ROUTINES.map((routine) => ({
@@ -199,10 +190,8 @@ export default function Home() {
       router.push("/session");
       return;
     }
-    if (loggedToday) {
-      router.push(`/history?id=${loggedToday.id}`);
-      return;
-    }
+    // Keep Start workout available after a session is already logged today.
+    // Finished work is opened from Last session / History instead.
     if (!active?.exerciseIds?.length || !user || starting) {
       router.push("/workout");
       return;
@@ -268,11 +257,11 @@ export default function Home() {
       </div>
       <section className="ready">
         <div>
-          <p className="ready-label">{loggedToday ? "Logged" : hasActive ? "In progress" : nextSplitDay ? "Up next" : "Ready to train"}</p>
+          <p className="ready-label">{hasActive ? "In progress" : loggedToday ? "Logged" : nextSplitDay && !active ? "Up next" : "Ready to train"}</p>
           <h1>{active?.name || (nextSplitDay ? nextSplitDay.label : DOW[todayIdx])}</h1>
           <p className="sub">
-            {loggedToday
-              ? "Open the finished session"
+            {hasActive
+              ? "Resume the open session"
               : active?.exerciseIds?.length
                 ? `${active.exerciseIds.length} exercises · ${active.focus || ""}`
                 : nextSplitDay
@@ -280,7 +269,7 @@ export default function Home() {
                   : "Choose a workout for this day."}
           </p>
         </div>
-        <button className="play" type="button" aria-label={loggedToday ? "View workout" : "Start workout"} onClick={onPlay} disabled={starting}>
+        <button className="play" type="button" aria-label={hasActive ? "Resume workout" : "Start workout"} onClick={onPlay} disabled={starting}>
           <Icon name="play" />
         </button>
       </section>

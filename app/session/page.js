@@ -12,19 +12,37 @@ import { volumeOf } from "../../lib/volume";
 import Icon from "../components/Icon";
 import Plates from "../components/Plates";
 import { loadWorkoutsCached, invalidateWorkouts } from "../../lib/dataCache";
+import { getRestDefault } from "../../lib/prefs";
 
-const REST_DEFAULT = 90;
-const RING_C = 326.73;
+const RING_C = 326.73; // circumference for r=52
+
+function pingRestDone() {
+  try { navigator.vibrate?.([90, 50, 90]); } catch { /* noop */ }
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) {
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.value = 0.07;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+      osc.stop(ctx.currentTime + 0.32);
+      setTimeout(() => ctx.close().catch(() => {}), 500);
+    }
+  } catch { /* noop */ }
+  const prev = document.title;
+  document.title = "Rest done · LiftLog";
+  setTimeout(() => { if (document.title === "Rest done · LiftLog") document.title = prev || "LiftLog"; }, 5000);
+}
 
 function clock(sec) {
   const s = Math.max(0, Math.round(sec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-function fmtVol(v) {
-  const n = Math.round(v || 0);
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-  return String(n);
 }
 
 const StablePlates = memo(Plates);
@@ -40,16 +58,16 @@ const ElapsedClock = memo(function ElapsedClock({ startedAt }) {
   return <>{clock(elapsed)} in</>;
 });
 
-const LoggedPanel = memo(function LoggedPanel({ sets, volume }) {
+const LoggedPanel = memo(function LoggedPanel({ sets, volume, onEdit }) {
   if (!sets.length) return null;
   return (
     <section className="panel" style={{ marginTop: 14 }}>
       <div className="panel-head"><h2>Logged</h2><span className="note num">{Math.round(volume).toLocaleString()} lb</span></div>
       {sets.map((s) => (
-        <div key={s.id} className="lift">
+        <button key={s.id} type="button" className="lift" onClick={() => onEdit(s)} aria-label={`Edit set ${s.set_number}`}>
           <span className="lift-copy"><strong>Set {s.set_number}</strong></span>
           <span className="scheme num">{s.weight} lb × {s.reps}</span>
-        </div>
+        </button>
       ))}
     </section>
   );
@@ -119,7 +137,7 @@ const StableCover = memo(function StableCover({ src }) {
   );
 });
 
-const OrderSheet = memo(function OrderSheet({ rows, onClose, onPick, onReorder }) {
+const OrderSheet = memo(function OrderSheet({ rows, onClose, onPick, onReorder, onRemove }) {
   const listRef = useRef(null);
   const dragState = useRef(null);
   const justDraggedRef = useRef(false);
@@ -255,6 +273,15 @@ const OrderSheet = memo(function OrderSheet({ rows, onClose, onPick, onReorder }
                   <strong>{g.exercise.name}</strong>
                   <small>{`${done} ${done === 1 ? "set" : "sets"}`}</small>
                 </span>
+                {done === 0 ? (
+                  <button
+                    className="text-btn"
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onRemove(g.exercise.id); }}
+                  >
+                    Remove
+                  </button>
+                ) : null}
               </div>
             );
           })}
@@ -283,9 +310,12 @@ export default function Session() {
   const [metric, setMetric] = useState("weight");
   const [restLeft, setRestLeft] = useState(null);
   const [restOn, setRestOn] = useState(false);
-  const [restDur, setRestDur] = useState(REST_DEFAULT);
+  const [restDur, setRestDur] = useState(90);
+  const [restDoneFlash, setRestDoneFlash] = useState(false);
   const [showRest, setShowRest] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const [editSet, setEditSet] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
   const [motionOpen, setMotionOpen] = useState(false);
   const [motionTime, setMotionTime] = useState(12);
   const [logError, setLogError] = useState("");
@@ -300,6 +330,32 @@ export default function Session() {
   const refreshGen = useRef(0);
   const loggingRef = useRef(false);
   const restEndsRef = useRef(null);
+  const padFreshRef = useRef(true);
+
+  useEffect(() => {
+    setRestDur(getRestDefault());
+  }, []);
+
+  // Keep the screen awake for the whole open session (gym pocket / rack use).
+  useEffect(() => {
+    if (!workoutId || typeof navigator === "undefined" || !navigator.wakeLock?.request) return undefined;
+    let lock = null;
+    let cancelled = false;
+    async function request() {
+      try {
+        if (cancelled || document.visibilityState !== "visible") return;
+        lock = await navigator.wakeLock.request("screen");
+      } catch { /* unsupported or denied */ }
+    }
+    request();
+    const onVis = () => { if (document.visibilityState === "visible") request(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVis);
+      try { lock?.release?.(); } catch { /* noop */ }
+    };
+  }, [workoutId]);
 
   useEffect(() => {
     const id = localStorage.getItem(ACTIVE_WORKOUT_KEY);
@@ -370,7 +426,7 @@ export default function Session() {
         if (snap.focusId) setFocusId(snap.focusId);
         if (snap.rest && snap.rest.endsAt > Date.now()) {
           restEndsRef.current = snap.rest.endsAt;
-          setRestDur(snap.rest.dur || REST_DEFAULT);
+          setRestDur(snap.rest.dur || getRestDefault());
           setRestLeft(Math.max(1, Math.ceil((snap.rest.endsAt - Date.now()) / 1000)));
           setRestOn(true);
           setShowRest(true);
@@ -396,6 +452,50 @@ export default function Session() {
       }
     })();
   }, [user]);
+
+  // Prefill drafts from the last logged set when still on catalog defaults.
+  useEffect(() => {
+    if (!history.length || !catalog.length || !addedExerciseIds.length) return;
+    setDrafts((d) => {
+      let changed = false;
+      const next = { ...d };
+      for (const exId of addedExerciseIds) {
+        const row = catalog.find((e) => e.id === exId);
+        if (!row) continue;
+        const meta = catalogByName(row.name);
+        const defaultW = meta?.bodyweight ? "0" : String(meta?.weight ?? 45);
+        const defaultR = String(meta?.reps ?? 8);
+        const cur = next[exId];
+        if (cur && (cur.weight !== defaultW || cur.reps !== defaultR)) continue;
+        let prev = null;
+        for (const w of history) {
+          const rows = (w.sets ?? []).filter((s) => s.exercise_id === exId);
+          if (!rows.length) continue;
+          const last = rows[rows.length - 1];
+          prev = { weight: String(Number(last.weight) || 0), reps: String(last.reps ?? defaultR) };
+          break;
+        }
+        if (!prev) continue;
+        next[exId] = prev;
+        changed = true;
+      }
+      return changed ? next : d;
+    });
+  }, [history, catalog, addedExerciseIds]);
+
+  // Escape closes the open pad / edit sheet / picker / order sheet.
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== "Escape") return;
+      if (editSet) { setEditSet(null); return; }
+      if (logOpen) { setLogOpen(false); return; }
+      if (pickerOpen) { setPickerOpen(false); return; }
+      if (orderOpen) { setOrderOpen(false); return; }
+      if (motionOpen) { setMotionOpen(false); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editSet, logOpen, pickerOpen, orderOpen, motionOpen]);
 
   // Mirror the exercise order for use inside pointer handlers.
   useEffect(() => {
@@ -426,8 +526,10 @@ export default function Session() {
       if (left <= 0) {
         restEndsRef.current = null;
         setRestOn(false);
-        setShowRest(false);
-        setRestLeft(null);
+        setRestLeft(0);
+        setRestDoneFlash(true);
+        setShowRest(true);
+        pingRestDone();
       }
     };
     tick();
@@ -567,7 +669,24 @@ export default function Session() {
     restEndsRef.current = null;
     setRestOn(false);
     setRestLeft(null);
+    setRestDoneFlash(false);
     setShowRest(false);
+  }
+
+  function advanceIfDone(exerciseId) {
+    const row = catalog.find((e) => e.id === exerciseId);
+    const plannedSets = catalogByName(row?.name)?.sets;
+    if (!plannedSets) return;
+    const logged = setsRef.current.filter((s) => s.exercise_id === exerciseId).length;
+    if (logged < plannedSets) return;
+    const nextId = orderRef.current.find((id) => {
+      if (id === exerciseId) return false;
+      const name = catalog.find((e) => e.id === id)?.name;
+      const plan = catalogByName(name)?.sets;
+      const n = setsRef.current.filter((s) => s.exercise_id === id).length;
+      return !plan || n < plan;
+    });
+    if (nextId) setFocusId(nextId);
   }
 
   async function logSet() {
@@ -578,6 +697,7 @@ export default function Session() {
     const weight = parseFloat(draft.weight);
     if (!reps || reps <= 0) return;
     loggingRef.current = true;
+    setLogging(true);
     const existing = setsRef.current.filter((s) => s.exercise_id === exercise.id).length;
     const tempId = `pending-${Date.now()}-${existing + 1}`;
     const optimistic = {
@@ -598,8 +718,6 @@ export default function Session() {
     setRestLeft(restDur);
     setRestOn(true);
     setShowRest(true);
-    setLogging(false);
-    loggingRef.current = false;
     try {
       const supabase = await getSupabase();
       if (!supabase) throw new Error("no-client");
@@ -613,12 +731,27 @@ export default function Session() {
       if (error || !data) throw error || new Error("insert");
       setsRef.current = setsRef.current.map((s) => (s.id === tempId ? { ...data, exercises: optimistic.exercises } : s));
       setSets(setsRef.current);
+      advanceIfDone(exercise.id);
       refreshSets(workoutId);
     } catch {
       setsRef.current = setsRef.current.filter((s) => s.id !== tempId);
       setSets(setsRef.current);
+      restEndsRef.current = null;
+      setRestOn(false);
+      setShowRest(false);
+      setRestLeft(null);
+      setRestDoneFlash(false);
       setLogError("That set didn't save. Log it again.");
+    } finally {
+      loggingRef.current = false;
+      setLogging(false);
     }
+  }
+
+  function openPad(nextMetric) {
+    setMetric(nextMetric);
+    padFreshRef.current = true;
+    setLogOpen(true);
   }
 
   function padKey(key) {
@@ -627,8 +760,15 @@ export default function Session() {
     setDrafts((d) => {
       const cur = d[id] ?? { reps: "", weight: "" };
       let val = cur[metric] || "";
-      if (key === "back") val = val.slice(0, -1);
-      else {
+      if (key === "back") {
+        // Backspace after opening the pad edits the existing value.
+        padFreshRef.current = false;
+        val = val.slice(0, -1);
+      } else if (padFreshRef.current) {
+        // First digit after opening replaces the old weight/reps.
+        padFreshRef.current = false;
+        val = key;
+      } else {
         val = (val + key).slice(0, 5);
         if (/^0\d/.test(val)) val = val.slice(1);
       }
@@ -636,8 +776,82 @@ export default function Session() {
     });
   }
 
+  function openEditSet(s) {
+    if (s.pending) return;
+    setEditSet({ id: s.id, exercise_id: s.exercise_id, set_number: s.set_number, weight: String(s.weight ?? 0), reps: String(s.reps ?? 0) });
+  }
+
+  async function saveEditSet() {
+    if (!editSet || editSaving) return;
+    const reps = parseInt(editSet.reps, 10);
+    const weight = parseFloat(editSet.weight);
+    if (!reps || reps <= 0) return;
+    setEditSaving(true);
+    setLogError("");
+    try {
+      const supabase = await getSupabase();
+      if (!supabase) throw new Error("no-client");
+      const nextWeight = Number.isFinite(weight) ? weight : 0;
+      const { error } = await supabase
+        .from("sets")
+        .update({ reps, weight: nextWeight })
+        .eq("id", editSet.id);
+      if (error) throw error;
+      setsRef.current = setsRef.current.map((s) => (
+        s.id === editSet.id ? { ...s, reps, weight: nextWeight } : s
+      ));
+      setSets(setsRef.current);
+      setEditSet(null);
+    } catch {
+      setLogError("That didn't save. Try again.");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function deleteEditSet() {
+    if (!editSet || editSaving) return;
+    if (!confirm("Delete this set?")) return;
+    setEditSaving(true);
+    setLogError("");
+    try {
+      const supabase = await getSupabase();
+      if (!supabase) throw new Error("no-client");
+      const { error } = await supabase.from("sets").delete().eq("id", editSet.id);
+      if (error) throw error;
+      const remaining = setsRef.current.filter((s) => s.id !== editSet.id);
+      // Keep set_number contiguous for this exercise after a mid-session delete.
+      const sameEx = remaining
+        .filter((s) => s.exercise_id === editSet.exercise_id)
+        .sort((a, b) => a.set_number - b.set_number);
+      const renumber = new Map(sameEx.map((s, i) => [s.id, i + 1]));
+      const nextSets = remaining.map((s) => (
+        renumber.has(s.id) ? { ...s, set_number: renumber.get(s.id) } : s
+      ));
+      setsRef.current = nextSets;
+      setSets(nextSets);
+      setEditSet(null);
+      // Persist renumbered set_number only for rows that actually changed.
+      await Promise.all(
+        sameEx
+          .filter((s) => s.set_number !== renumber.get(s.id))
+          .map((s) => supabase.from("sets").update({ set_number: renumber.get(s.id) }).eq("id", s.id))
+      );
+    } catch {
+      setLogError("That didn't save. Try again.");
+      if (workoutId) refreshSets(workoutId);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   async function finishWorkout() {
     if (!workoutId) return;
+    if (loggingRef.current || setsRef.current.some((s) => s.pending)) {
+      setLogError("Wait for the last set to save, then finish.");
+      return;
+    }
+    if (!setsRef.current.length && !confirm("No sets logged. Finish anyway?")) return;
     setFinishing(true);
     const supabase = await getSupabase();
     const { error } = supabase
@@ -699,6 +913,13 @@ export default function Session() {
   const reorderExercises = useCallback((next) => {
     orderRef.current = next;
     setAddedExerciseIds(next);
+  }, []);
+  const removeExercise = useCallback((exId) => {
+    if (setsRef.current.some((s) => s.exercise_id === exId)) return;
+    const next = orderRef.current.filter((id) => id !== exId);
+    orderRef.current = next;
+    setAddedExerciseIds(next);
+    setFocusId((cur) => (cur === exId ? (next[0] || null) : cur));
   }, []);
 
   if (loading) {
@@ -795,7 +1016,9 @@ export default function Session() {
               <h1>{focus.exercise.name}</h1>
               <p className="lede">
                 Set {setNum} of {planned}
-                {previous ? ` · Last time ${previous.weight} lb × ${previous.reps}` : " · No earlier set in the log"}
+                {previous
+                  ? ` · Last time ${previous.weight > 0 ? `${previous.weight} lb` : "BW"} × ${previous.reps}`
+                  : " · No earlier set in the log"}
                 {" · "}<ElapsedClock startedAt={startedAt} />
               </p>
             </div>
@@ -809,7 +1032,7 @@ export default function Session() {
               <span>Weight</span>
               <div className="stepper">
                 <button className="step" type="button" aria-label="Decrease weight" onClick={() => { setMetric("weight"); bump("weight", -5); }}>−</button>
-                <button className="figure" type="button" onClick={() => { setMetric("weight"); setLogOpen(true); }}>
+                <button className="figure" type="button" onClick={() => openPad("weight")}>
                   {weightLabel}{weightLabel === "BW" ? null : <small>lb</small>}
                 </button>
                 <button className="step" type="button" aria-label="Increase weight" onClick={() => { setMetric("weight"); bump("weight", 5); }}>+</button>
@@ -819,7 +1042,7 @@ export default function Session() {
               <span>Reps</span>
               <div className="stepper">
                 <button className="step" type="button" aria-label="Decrease reps" onClick={() => { setMetric("reps"); bump("reps", -1); }}>−</button>
-                <button className="figure" type="button" onClick={() => { setMetric("reps"); setLogOpen(true); }}>{draft.reps || "0"}</button>
+                <button className="figure" type="button" onClick={() => openPad("reps")}>{draft.reps || "0"}</button>
                 <button className="step" type="button" aria-label="Increase reps" onClick={() => { setMetric("reps"); bump("reps", 1); }}>+</button>
               </div>
             </div>
@@ -837,15 +1060,38 @@ export default function Session() {
           </div>
           {logError ? <p className="note" role="alert">{logError}</p> : null}
           {showRest && (
-            <div className="rest" role="region" aria-label="Rest">
+            <div className={`rest${restDoneFlash ? " is-done" : ""}`} role="region" aria-label="Rest">
               <div className="stripe" />
-              <p className="figure">{clock(restLeft ?? 0)}</p>
-              <p>{restOn ? "Resting before the next set." : "Rest is paused."}</p>
+              <div className="rest-ring" aria-hidden="true">
+                <svg viewBox="0 0 120 120" width="120" height="120">
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="var(--border)" strokeWidth="8" />
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="52"
+                    fill="none"
+                    stroke="var(--accent)"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={RING_C}
+                    strokeDashoffset={restDoneFlash || !restDur ? 0 : RING_C * (1 - Math.max(0, restLeft ?? 0) / restDur)}
+                    transform="rotate(-90 60 60)"
+                  />
+                </svg>
+                <p className="figure">{restDoneFlash ? "0:00" : clock(restLeft ?? 0)}</p>
+              </div>
+              <p>{restDoneFlash ? "Rest done — go again." : restOn ? "Resting before the next set." : "Rest is paused."}</p>
               <div className="title-actions" style={{ marginTop: 10 }}>
-                <button className="btn btn-line" type="button" onClick={toggleRest}>{restOn ? "Pause" : "Resume"}</button>
-                <button className="btn btn-line" type="button" onClick={() => nudge(1)}>+15s</button>
-                <button className="btn btn-line" type="button" onClick={() => nudge(-1)}>−15s</button>
-                <button className="btn btn-quiet" type="button" onClick={skipRest}>Skip rest</button>
+                {restDoneFlash ? (
+                  <button className="btn btn-primary" type="button" onClick={skipRest}>Next set</button>
+                ) : (
+                  <>
+                    <button className="btn btn-line" type="button" onClick={toggleRest}>{restOn ? "Pause" : "Resume"}</button>
+                    <button className="btn btn-line" type="button" onClick={() => nudge(1)}>+15s</button>
+                    <button className="btn btn-line" type="button" onClick={() => nudge(-1)}>−15s</button>
+                    <button className="btn btn-quiet" type="button" onClick={skipRest}>Skip rest</button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -862,7 +1108,7 @@ export default function Session() {
               </div>
             </div>
           )}
-          <LoggedPanel sets={exSets} volume={volume} />
+          <LoggedPanel sets={exSets} volume={volume} onEdit={openEditSet} />
           <QueuePanel grouped={grouped} focusId={focus.exercise.id} onFocus={focusExercise} onAdd={openPicker} />
         </>
       ) : (
@@ -873,8 +1119,50 @@ export default function Session() {
         </>
       )}
 
+      {editSet && (
+        <div className="sheet">
+          <button className="sheet-scrim" type="button" aria-label="Close" onClick={() => setEditSet(null)} />
+          <div className="sheet-card" role="dialog" aria-modal="true" aria-label="Edit set">
+            <header>
+              <h2>Edit set {editSet.set_number}</h2>
+              <button className="text-btn" type="button" onClick={() => setEditSet(null)}>Close</button>
+            </header>
+            <label className="field">
+              <span>Weight (lb)</span>
+              <input
+                className="input"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.5"
+                value={editSet.weight}
+                onChange={(e) => setEditSet((prev) => ({ ...prev, weight: e.target.value }))}
+              />
+            </label>
+            <label className="field">
+              <span>Reps</span>
+              <input
+                className="input"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                step="1"
+                value={editSet.reps}
+                onChange={(e) => setEditSet((prev) => ({ ...prev, reps: e.target.value }))}
+              />
+            </label>
+            <div className="title-actions" style={{ marginTop: 14 }}>
+              <button className="btn btn-primary" type="button" onClick={saveEditSet} disabled={editSaving || !parseInt(editSet.reps, 10)}>
+                {editSaving ? "Saving…" : "Save"}
+              </button>
+              <button className="btn btn-bad" type="button" onClick={deleteEditSet} disabled={editSaving}>Delete set</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {orderOpen && (
-        <OrderSheet rows={orderList} onClose={closeOrder} onPick={pickFromOrder} onReorder={reorderExercises} />
+        <OrderSheet rows={orderList} onClose={closeOrder} onPick={pickFromOrder} onReorder={reorderExercises} onRemove={removeExercise} />
       )}
 
       {pickerOpen && (

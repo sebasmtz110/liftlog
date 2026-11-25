@@ -442,7 +442,18 @@ function WorkoutInner() {
       {loadError ? <button className="text-btn" type="button" onClick={() => refresh()}>Try again</button> : null}
       <div className="seg" role="tablist">
         {[["week", "This week"], ["routines", "Routines"], ["recent", "Recent"]].map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => {
+              setTab(id);
+              router.replace(id === "week" ? "/workout" : `/workout?tab=${id}`);
+            }}
+          >
+            {label}
+          </button>
         ))}
       </div>
 

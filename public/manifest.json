@@ -4,8 +4,8 @@
   "description": "Simple workout tracker \u2014 log exercises, sets, reps and weight.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#f4f3f1",
+  "theme_color": "#f4f3f1",
   "icons": [
     {
       "src": "/icon-192.png",
